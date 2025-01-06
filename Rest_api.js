@@ -1,7 +1,7 @@
 //Will setup and handle the REST api endpoint for the app, sends a json payload back
 //Will handle POST, GET and PATCH
 /*  POST: /signup and /login
-*   GET /user retrieving a user's profile, /verify verifying a users account
+*   GET /user retrieving a user's profile, /verify a users account
 *   PATCH /user/:userId updating a user's profile
 */
 
@@ -171,6 +171,11 @@ app.post('/login', async (req, res) => {
     });
 })
 
+app.get('/user', async (req, res) => {
+    const user = req.body;
+
+    
+} )
 
 function validPassword(password)
 {

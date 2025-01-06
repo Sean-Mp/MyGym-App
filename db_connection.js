@@ -35,7 +35,7 @@ class UserDatabase{
             throw new Error("Use UserDatabase.instance()");
         }
 
-        this.conn = mysql.createConnection({
+        this.conn = conn || mysql.createConnection({
             host: process.env.DB_HOST,
             user: process.env.DB_USER,
             password: process.env.DB_PASSWORD,
@@ -101,7 +101,7 @@ class UserDatabase{
 
                 return resolve(true);
             });
-        })
+        });
     }
     insertUser(username, password, email)
     {
@@ -156,9 +156,89 @@ class UserDatabase{
             return reject(false);
         });
     }
-    verifyEmail()
+    verifyEmail(id)
     {
-        
+        return new Promise((resolve, reject) => {
+
+            const sql = "SELECT verified FROM users where id = ?";
+
+            this.conn.query(sql, [id], (error, results) => {
+                if(error)
+                {
+                    return reject(error);
+                }
+                if(results.length === 0)
+                {
+                    return reject(false);
+                }
+
+                if(results[0].verified === null || results[0].verified === false)
+                {
+                    const verifyUser = "UPDATE users SET verified = true WHERE id = ?";
+
+                    this.conn.query(verifyUser, [id], (error) => {
+                        if(error)
+                        {
+                            return reject(error);
+                        }
+
+                        resolve(true);
+                    });
+                }
+                return resolve(true);
+            });
+        });
+    }
+    updateLastLogin(id)
+    {
+        return new Promise((resolve, reject) => {
+            const sql = "UPDATE users SET Last_Login = ? WHERE id = ?";
+            const date = new Date();
+            
+            this.conn.query(sql, [date, id], (error) => {
+                if(error)
+                {
+                    reject(error);
+                }
+
+                resolve(true);
+            })
+        })
+    }
+    getLastLogin(id)
+    {
+        return new Promise((resolve, reject) => {
+            const sql = "SELECT Last_Login FROM users WHERE id = ?";
+
+            this.conn.query(sql, [id], (error, results) => {
+                if(error)
+                {
+                    return reject(error);
+                }
+                
+                if(results.length == 0)
+                {
+                    return reject(error);
+                }
+                
+                return resolve(true);
+            });
+        });
+    }
+    deleteUser(id)
+    {
+        return new Promise((resolve, reject) => {
+            const sql = "DELETE FROM users WHERE id = ?";
+
+            this.conn.query(sql, [id], (error) => {
+                if(error)
+                {
+                    return reject(error);
+                }
+
+                return resolve(true);
+            });
+        });
     }
     destruct()
     {
@@ -237,19 +317,19 @@ class WorkoutDatabase{
             });
         })
     }
-    updateDate(date, workout_id)
+    updateWorkoutDate(date, workout_id)
     {
         return new Promise((resolve, reject) => {
 
             const sql = "UPDATE workouts SET last_workout = ? WHERE workout_id = ?";
 
-            this.conn.query(sql, [formatDate(date), workout_id], (error, results) =>{
+            this.conn.query(sql, [formatDate(date), workout_id], (error) =>{
                 if(error)
                 {
                     return reject(error);
                 }
  
-                resolve(results);
+                resolve(true);
             });
         });
     }
@@ -258,13 +338,13 @@ class WorkoutDatabase{
         return new Promise((resolve, reject) =>{
             const sql = "UPDATE workouts SET name = ? WHERE workout_id = ?";
 
-            this.conn.query(sql, [new_name, workout_id], (error, results) =>{
+            this.conn.query(sql, [new_name, workout_id], (error) =>{
                 if(error)
                 {
                     reject(error);
                 }
 
-                resolve(results);
+                resolve(true);
             });
         });
     }
@@ -273,13 +353,13 @@ class WorkoutDatabase{
         return new Promise((resolve, reject) =>{
             const sql = "DELETE FROM workouts WHERE workout_id = ?";
 
-            this.conn.query(sql, [workout_id], (error, results) =>{
+            this.conn.query(sql, [workout_id], (error) =>{
                 if(error)
                 {
                     reject(error);
                 }
 
-                resolve(results);
+                resolve(true);
             });
         });
     }
@@ -363,13 +443,13 @@ class ExerciseDatabase{
         return new Promise((resolve, reject) =>{
             const sql = "UPDATE exercises SET name = ? WHERE exercise_id = ?";
 
-            this.conn.query(sql, [new_name, exercise_id], (error, results) =>{
+            this.conn.query(sql, [new_name, exercise_id], (error) =>{
                 if(error)
                 {
                     return reject(error);
                 }
 
-                resolve(results);
+                resolve(true);
             });
         });
     }
@@ -378,13 +458,13 @@ class ExerciseDatabase{
         return new Promise((resolve, reject) =>{
             const sql = "UPDATE exercises SET rep_start = ?, rep_end = ? WHERE exercise_id = ?";
 
-            this.conn.query(sql, [range[0], range[1], exercise_id], (error, results) =>{
+            this.conn.query(sql, [range[0], range[1], exercise_id], (error) =>{
                 if(error)
                 {
                     return reject(error);
                 }
 
-                resolve(results);
+                resolve(true);
             });
         });
     }
@@ -393,13 +473,13 @@ class ExerciseDatabase{
         return new Promise((resolve, reject) =>{
             const sql = "UPDATE exercises SET sets = ? WHERE exercise_id = ?";
 
-            this.conn.query(sql, [sets, exercise_id], (error, results) =>{
+            this.conn.query(sql, [sets, exercise_id], (error) =>{
                 if(error)
                 {
                     return reject(error);
                 }
 
-                resolve(results);
+                resolve(true);
             });
         });
     }
@@ -408,13 +488,13 @@ class ExerciseDatabase{
         return new Promise((resolve, reject) =>{
             const sql = "UPDATE exercises SET current_weight = ? WHERE exercise_id = ?";
 
-            this.conn.query(sql, [new_cW, exercise_id], (error, results) =>{
+            this.conn.query(sql, [new_cW, exercise_id], (error) =>{
                 if(error)
                 {
                     return reject(error);
                 }
 
-                resolve(results);
+                resolve(true);
             });
         });
     }
@@ -423,13 +503,13 @@ class ExerciseDatabase{
         return new Promise((resolve, reject) =>{
             const sql = "UPDATE exercises SET goal_weight = ? WHERE exercise_id = ?";
 
-            this.conn.query(sql, [new_gW, exercise_id], (error, results) =>{
+            this.conn.query(sql, [new_gW, exercise_id], (error) =>{
                 if(error)
                 {
                     return reject(error);
                 }
 
-                resolve(results);
+                resolve(true);
             });
         });
     }
@@ -438,13 +518,13 @@ class ExerciseDatabase{
         return new Promise((resolve, reject) =>{
             const sql = "UPDATE exercises SET notes = ? WHERE exercise_id = ?";
 
-            this.conn.query(sql, [new_notes, exercise_id], (error, results) =>{
+            this.conn.query(sql, [new_notes, exercise_id], (error) =>{
                 if(error)
                 {
                     return reject(error);
                 }
 
-                resolve(results);
+                resolve(true);
             });
         });
     }
@@ -453,13 +533,13 @@ class ExerciseDatabase{
         return new Promise((resolve, reject) => {
             const sql = "UPDATE exercises SET notes = CONCAT(notes, ?) WHERE exercise_id = ?";
 
-            this.conn.query(sql, [added_notes, exercise_id], (error, results) =>{
+            this.conn.query(sql, [added_notes, exercise_id], (error) =>{
                 if(error)
                 {
                     reject(error);
                 }
 
-                resolve(results);
+                resolve(true);
             });
         })
     }
@@ -468,13 +548,13 @@ class ExerciseDatabase{
         return new Promise((resolve, reject) =>{
             const sql = "DELETE FROM exercises WHERE exercise_id = ?";
 
-            this.conn.query(sql, [exercise_id], (error, results) => {
+            this.conn.query(sql, [exercise_id], (error) => {
                 if(error)
                 {
                     reject(error);
                 }
 
-                resolve(results);
+                resolve(true);
             });
         });
     }
@@ -678,13 +758,13 @@ class IngredientDatabase{
         return new Promise((resolve, reject) =>{
             const sql = "UPDATE ingredients SET name = ? WHERE ingredient_id = ?";
 
-            this.conn.query(sql, [name, id], (error, results) =>{
+            this.conn.query(sql, [name, id], (error) =>{
                 if(error)
                 {
                     reject(error);
                 }
 
-                resolve(results);
+                resolve(true);
             });
         });
     }
@@ -695,13 +775,13 @@ class IngredientDatabase{
             const joules = 0.239006*calories;
             const sql = "UPDATE ingredients SET calories = ?, kilojoules = ? WHERE ingredient_id = ?";
 
-            this.conn.query(sql, [calories, joules, id], (error, results) =>{
+            this.conn.query(sql, [calories, joules, id], (error) =>{
                 if(error)
                 {
                     reject(error);
                 }
 
-                resolve(results);
+                resolve(true);
             });
         });
     }
@@ -712,13 +792,13 @@ class IngredientDatabase{
             const calories = 4.184*kilojoules;
             const sql = "UPDATE ingredients SET calories = ?, kilojoules = ? WHERE ingredient_id = ?";
 
-            this.conn.query(sql, [calories, kilojoules, id], (error, results) =>{
+            this.conn.query(sql, [calories, kilojoules, id], (error) =>{
                 if(error)
                 {
                     reject(error);
                 }
 
-                resolve(results);
+                resolve(true);
             });
         });
     }
@@ -727,13 +807,13 @@ class IngredientDatabase{
         return new Promise((resolve, reject) =>{
             const sql = "UPDATE ingredients SET protein = ? WHERE ingredient_id = ?";
 
-            this.conn.query(sql, [protein, id], (error, results) =>{
+            this.conn.query(sql, [protein, id], (error) =>{
                 if(error)
                 {
                     reject(error);
                 }
 
-                resolve(results);
+                resolve(true);
             });
         });
     }
@@ -742,13 +822,13 @@ class IngredientDatabase{
         return new Promise((resolve, reject) =>{
             const sql = "UPDATE ingredients SET carbohydrates = ? WHERE ingredient_id = ?";
 
-            this.conn.query(sql, [carbohydrates, id], (error, results) =>{
+            this.conn.query(sql, [carbohydrates, id], (error) =>{
                 if(error)
                 {
                     reject(error);
                 }
 
-                resolve(results);
+                resolve(true);
             });
         });
     }
@@ -757,13 +837,13 @@ class IngredientDatabase{
         return new Promise((resolve, reject) =>{
             const sql = "UPDATE ingredients SET fat = ? WHERE ingredient_id = ?";
 
-            this.conn.query(sql, [fat, id], (error, results) =>{
+            this.conn.query(sql, [fat, id], (error) =>{
                 if(error)
                 {
                     reject(error);
                 }
 
-                resolve(results);
+                resolve(true);
             });
         });
     }
@@ -772,13 +852,13 @@ class IngredientDatabase{
         return new Promise((resolve, reject) =>{
             const sql = "DELETE FROM ingredients WHERE ingredient_id = ?";
 
-            this.conn.query(sql, [ingredient_id], (error, results) => {
+            this.conn.query(sql, [ingredient_id], (error) => {
                 if(error)
                 {
                     reject(error);
                 }
 
-                resolve(results);
+                resolve(true);
             });
         });
     }
