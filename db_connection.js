@@ -83,6 +83,25 @@ class UserDatabase{
             throw error;
         }
     }
+    verifyUser(id)
+    {
+        return new Promise((resolve, reject) => {
+            const sql = "SELECT ID FROM users where ID = ?";
+
+            this.conn.query(sql, [id], (error, results) => {
+                if(error)
+                {
+                    return reject(false);
+                }
+                if(results.length === 0)
+                {
+                    return reject(false);
+                }
+
+                return resolve(true);
+            });
+        });
+    }
     checkUserExists(username, email)
     {
         return new Promise((resolve, reject) => {
@@ -156,11 +175,10 @@ class UserDatabase{
             return reject(false);
         });
     }
-    verifyEmail(id)
+    getUsername(id)
     {
         return new Promise((resolve, reject) => {
-
-            const sql = "SELECT verified FROM users where id = ?";
+            const sql = "SELECT username FROM users WHERE id = ?";
 
             this.conn.query(sql, [id], (error, results) => {
                 if(error)
@@ -172,9 +190,29 @@ class UserDatabase{
                     return reject(false);
                 }
 
+                return resolve(results[0].username);
+            });
+        });
+    }
+    verifyEmail(email)
+    {
+        return new Promise((resolve, reject) => {
+
+            const sql = "SELECT verified FROM users where email = ?";
+
+            this.conn.query(sql, [email], (error, results) => {
+                if(error)
+                {
+                    return reject(error);
+                }
+                if(results.length === 0)
+                {
+                    return reject(false);
+                }
+
                 if(results[0].verified === null || results[0].verified === false)
                 {
-                    const verifyUser = "UPDATE users SET verified = true WHERE id = ?";
+                    const verifyUser = "UPDATE users SET verified = true WHERE email = ?";
 
                     this.conn.query(verifyUser, [id], (error) => {
                         if(error)
@@ -622,6 +660,26 @@ class NutritionDatabase{
                 }
             }); 
 
+        });
+    }
+    getAllMeal(user_id)
+    {
+        return new Promise((resolve, reject) => {
+            const sql = "SELECT * FROM ingredients WHERE user_id = ?";
+
+            this.conn.query(sql, [user_id], (error, results) => {
+                if(error)
+                {
+                    return reject(error);
+                }
+
+                if(results.length === 0)
+                {
+                    return reject(false);
+                }
+
+                return resolve(results);
+            });
         });
     }
     getStats(id)
