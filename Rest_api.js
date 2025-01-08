@@ -2,7 +2,9 @@
 //Will handle POST, GET and PATCH
 /*  POST: /signup and /login
 *   GET /user retrieving a user's profile, /verify a users account
-*   PATCH /user/ :userId updating a user's profile, workout or nutrition
+*   PUT /user for creating workouts, exercises, ingredients and meals
+*   PATCH /user userId updating a user's profile, workout, ingredients or meals
+*   DELETE /user userId deleting a user's profile, workout or meals
 */
 
 require('dotenv').config({path: 'config.env'});
@@ -273,6 +275,30 @@ app.get('/user', async (req, res) => {
                 nutritionConn.destruct();
             }
         }
+        else if(user.type === 'meal-stats')
+        {
+            try{
+                var nutritionConn = NutritionDatabase.instance();
+                var meal = nutritionConn.getStats(user.meal_id);
+
+                return res.send({
+                    status: 'HTTP/1.1 200 OK',
+                    message: 'Meal Stats',
+                    meal: meal
+                });
+            }
+            catch(error)
+            {
+                return res.send({
+                    status: 'HTTP/1.1 500 Internal Server Error',
+                    message: error.message
+                });
+            }
+            finally
+            {
+                nutritionConn.destruct();
+            }
+        }
     }
     catch(error)
     {
@@ -303,7 +329,7 @@ app.get('/verify', async (req, res) => {
         const decode = jwt.verify(token, 'key');
         const email = decode.email;
 
-        if(!await userConn.verifyUser(req.body.user_id))
+        if(!await userConn.verifyUser(email))
         {
             return res.send({
                 status: 'HTTP/1.1 400 Bad Request',
@@ -325,6 +351,244 @@ app.get('/verify', async (req, res) => {
     }
     finally{
         userConn.destruct();
+    }
+});
+app.put('/user', async (req, res) => {
+    const user = req.body;
+
+    if(!user || Object.keys(user).length === 0)
+    {
+        return res.send({
+            status: 'HTTP/1.1 400 Bad Request',
+            message: 'JSON body empty'
+        });
+    }
+
+    const userConn = UserDatabase.instance();
+
+    try{
+        if(userConn.verifyUser(user.user_id))
+        {
+            return res.send({
+                status: 'HTTP/1.1 400 Bad Request',
+                message: 'user doesnt exist'
+            });
+        }
+    }
+    catch(error)
+    {
+        return res.send({
+            status: "HTTP/1.1 500 Internal Server Error",
+            message: error.message
+        });
+    }
+    finally
+    {
+        userConn.destruct();
+    }
+
+
+    if(user.type === 'workout')
+    {
+        const workoutConn = WorkoutDatabase.instance();
+    
+        if(user.workout_name.length === 0)
+        {
+            workoutConn.destruct();
+
+            return res.send({
+                status: 'HTTP/1.1 400 Bad Request',
+                message: 'Workout name not included'
+            });
+        }
+
+        try
+        {
+            if(workoutConn.createWorkout(user.workout_name, user.user_id))
+            {
+                return res.send({
+                    status: "HTTP/1.1 200 OK",
+                    message: "Workout successfully created"
+                });
+            }
+        }
+        catch(error)
+        {
+            return res.send({
+                status: "HTTP/1.1 500 Internal Server Error",
+                message: error.message
+            });
+        }
+        finally
+        {
+            workoutConn.destruct();
+        }
+    }
+    else if(user.type === 'exercise')
+    {
+        const exerciseConn = ExerciseDatabase.instance();
+
+        //check if the workout_id is correct first
+        try
+        {
+            if(!exerciseConn.getFullWorkout(user.workout_id))
+            {
+                return res.send({
+                    status: 'HTTP/1.1 400 Bad Request',
+                    message: 'workout doesnt exist'
+                });
+            }
+        }
+        catch(error)
+        {
+            exerciseConn.destruct();
+
+            return res.send({
+                status: 'HTTP/1.1 500 Internal Server Error',
+                message: error.message
+            });
+        }
+
+        if(user.exercise_name.length === 0 || user.rep_range.length === 0 || user.sets.length === 0 || user.current_weight.length === 0 || user.goal_weight.length === 0)
+        {
+            exerciseConn.destruct();
+
+            return res.send({
+                status: 'HTTP/1.1 400 Bad Request',
+                message: 'Invalid exercise'
+            });
+        }
+
+        try
+        {
+            if(exerciseConn.createExercise(user.exercise_name, user.rep_range, user.sets, user.current_weight, user.goal_weight, user.workout_id, user.notes))
+            {
+                return res.send({
+                    status: "HTTP/1.1 200 OK",
+                    message: "Exercise successfully created"
+                });
+            }
+        }
+        catch(error)
+        {
+            return res.send({
+                status: "HTTP/1.1 500 Internal Server Error",
+                message: error.message
+            });
+        }
+        finally
+        {
+            exerciseConn.destruct();
+        }
+    }
+    else if(user.type === 'meal')
+    {
+        const nutritionConn = NutritionDatabase.instance();
+
+        if(user.meal_name.length === 0)
+        {
+            nutritionConn.destruct();
+
+            return res.send({
+                status: 'HTTP/1.1 400 Bad Request',
+                message: 'Meal name not included'
+            });
+        }
+
+        try
+        {
+            if(nutritionConn.createMeal(user.meal_name, user.user_id))
+            {
+                return res.send({
+                    status: "HTTP/1.1 200 OK",
+                    message: "Meal successfully created"
+                });
+            }
+        }
+        catch(error)
+        {
+            return res.send({
+                status: "HTTP/1.1 500 Internal Server Error",
+                message: error.message
+            });
+        }
+        finally
+        {
+            nutritionConn.destruct();
+        }
+    }
+    else if(user.type === 'ingredient')
+    {
+        const mealConn = NutritionDatabase.instance();
+
+        //check if the meal_id is correct first
+        try
+        {
+            if(!mealConn.getMeal(user.meal_id))
+            {
+                return res.send({
+                    status: 'HTTP/1.1 400 Bad Request',
+                    message: 'meal doesnt exist'
+                });
+            }
+        }
+        catch(error)
+        {
+            mealConn.destruct();
+
+            return res.send({
+                status: 'HTTP/1.1 500 Internal Server Error',
+                message: error.message
+            });
+        }
+
+        if(user.ingredient_name.length === 0 || user.calories.length === 0 || user.protein.length === 0 || user.carbs.length === 0 || user.fat.length === 0)
+        {
+            mealConn.destruct();
+
+            return res.send({
+                status: 'HTTP/1.1 400 Bad Request',
+                message: 'Invalid ingredient'
+            });
+        }
+
+        mealConn.destruct();
+
+        //create ingredient
+        const ingredientConn = IngredientDatabase.instance();
+        try
+        {
+            if(ingredientConn.createIngredient(user.ingredient_name, user.calories, user.protein, user.carbs, user.fat, user.meal_id))
+            {
+                return res.send({
+                    status: "HTTP/1.1 200 OK",
+                    message: "Ingredient successfully created"
+                });
+            }
+        }
+        catch(error)
+        {
+            return res.send({
+                status: "HTTP/1.1 500 Internal Server Error",
+                message: error.message
+            });
+        }
+        finally
+        {
+            ingredientConn.destruct();
+        }
+    }
+});
+app.patch('/user', async (req, res) => {
+
+    const user = req.body;
+
+    if(!user || Object.keys(user).length === 0)
+    {
+        return res.send({
+            status: 'HTTP/1.1 400 Bad Request',
+            message: 'JSON body empty'
+        });
     }
 });
 function validPassword(password)

@@ -682,6 +682,26 @@ class NutritionDatabase{
             });
         });
     }
+    getMeal(id)
+    {
+        return new Promise((resolve, reject) => {
+            const sql = "SELECT * FROM nutrition WHERE id = ?";
+
+            this.conn.query(sql, [id], (error, results) => {
+                if(error)
+                {
+                    return reject(error);
+                }
+                
+                if(results.length === 0)
+                {
+                    return reject(false);
+                }
+
+                return resolve(results);
+            });
+        });
+    }
     getStats(id)
     {
         return new Promise((resolve, reject) => {
