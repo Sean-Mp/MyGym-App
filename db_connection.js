@@ -2,7 +2,7 @@
 
 require('dotenv').config({ path : 'config.env' });
 
-var mysql = require('mysql2');
+const mysql = require('mysql');
 const bcrypt = require('bcryptjs');
 const { TokenSender } = require('./tokenSender');
 
@@ -22,20 +22,12 @@ function formatDate(datetime)
 class UserDatabase{
     static #newInstance = null;
 
-    static instance()
-    {
-        if(this.#newInstance === null)
-        {
-            this.#newInstance = new UserDatabase();
-        }
-        return this.#newInstance;
-    }
     constructor(){
         if(UserDatabase.#newInstance){
             throw new Error("Use UserDatabase.instance()");
         }
 
-        this.conn = conn || mysql.createConnection({
+        this.conn = mysql.createConnection({
             host: process.env.DB_HOST,
             user: process.env.DB_USER,
             password: process.env.DB_PASSWORD,
@@ -43,10 +35,19 @@ class UserDatabase{
             port: process.env.DB_PORT
         });
 
-        this.conn.connect(function(error) {
+        this.conn.connect((error) => {
             if(error) throw error;
             console.log("Database connected successfully");
-        })
+        });
+        UserDatabase.#newInstance = this;
+    }
+    static instance()
+    {
+        if(!UserDatabase.#newInstance)
+        {
+            UserDatabase.#newInstance = new UserDatabase();
+        }
+        return UserDatabase.#newInstance;
     }
     async verifyUser(username, email, password)
     {
@@ -83,7 +84,7 @@ class UserDatabase{
             throw error;
         }
     }
-    verifyUser(id)
+    verifyUserID(id)
     {
         return new Promise((resolve, reject) => {
             const sql = "SELECT ID FROM users where ID = ?";
@@ -91,11 +92,11 @@ class UserDatabase{
             this.conn.query(sql, [id], (error, results) => {
                 if(error)
                 {
-                    return reject(false);
+                    return reject(error);
                 }
                 if(results.length === 0)
                 {
-                    return reject(false);
+                    return resolve(false);
                 }
 
                 return resolve(true);
@@ -280,12 +281,23 @@ class UserDatabase{
     }
     destruct()
     {
-        this.conn.end((error) => {
-            if(error)
+        return new Promise((resolve, reject) => {
+            if(!this.conn)
             {
+                resolve(true);
                 return;
             }
-            console.log("Successfully disconnected");
+
+            this.conn.end((error) => {
+                if(error)
+                {
+                    reject(error);
+                    return;
+                }
+
+                UserDatabase.#newInstance = null;
+                resolve(true);
+            });
         });
     }
 }
@@ -403,12 +415,23 @@ class WorkoutDatabase{
     }
     destruct()
     {
-        this.conn.end((error) => {
-            if(error)
+        return new Promise((resolve, reject) => {
+            if(!this.conn)
             {
+                resolve(true);
                 return;
             }
-            console.log("Successfully disconnected");
+
+            this.conn.end((error) => {
+                if(error)
+                {
+                    reject(error);
+                    return;
+                }
+
+                WorkoutDatabase.#newInstance = null;
+                resolve(true);
+            });
         });
     }
 }
@@ -598,12 +621,23 @@ class ExerciseDatabase{
     }
     destruct()
     {
-        this.conn.end((error) => {
-            if(error)
+        return new Promise((resolve, reject) => {
+            if(!this.conn)
             {
+                resolve(true);
                 return;
             }
-            console.log("Successfully disconnected");
+
+            this.conn.end((error) => {
+                if(error)
+                {
+                    reject(error);
+                    return;
+                }
+
+                ExerciseDatabase.#newInstance = null;
+                resolve(true);
+            });
         });
     }
 }
@@ -766,12 +800,23 @@ class NutritionDatabase{
     }
     destruct()
     {
-        this.conn.end((error) => {
-            if(error)
+        return new Promise((resolve, reject) => {
+            if(!this.conn)
             {
+                resolve(true);
                 return;
             }
-            console.log("Successfully disconnected");
+
+            this.conn.end((error) => {
+                if(error)
+                {
+                    reject(error);
+                    return;
+                }
+
+                NutritionDatabase.#newInstance = null;
+                resolve(true);
+            });
         });
     }
 }
@@ -828,6 +873,26 @@ class IngredientDatabase{
                 }
 
                 resolve(results);
+            });
+        });
+    }
+    getIngredient(id)
+    {
+        return new Promise((resolve, reject) => {
+            const sql = "SELECT * FROM ingredients WHERE ingredient_id = ?";
+
+            this.conn.query(sql, [id], (error, results) => {
+                if(error)
+                {
+                    reject(error);
+                }
+
+                if(results.length === 0)
+                {
+                    reject(false);
+                }
+
+                resolve(true);
             });
         });
     }
@@ -942,12 +1007,23 @@ class IngredientDatabase{
     }
     destruct()
     {
-        this.conn.end((error) => {
-            if(error)
+        return new Promise((resolve, reject) => {
+            if(!this.conn)
             {
+                resolve(true);
                 return;
             }
-            console.log("Successfully disconnected");
+
+            this.conn.end((error) => {
+                if(error)
+                {
+                    reject(error);
+                    return;
+                }
+
+                IngredientDatabase.#newInstance = null;
+                resolve(true);
+            });
         });
     }
 }

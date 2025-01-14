@@ -5,12 +5,13 @@
 
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
+require('dotenv').config({path: 'config.env'});
 
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: secure_configuration.EMAIL_USERNAME,
-        pass: secure_configuration.PASSWORD
+        user: process.env.EMAIL_USERNAME,
+        pass: process.env.PASSWORD
     }
 });
 
@@ -47,6 +48,4 @@ class tokenSender{
     }
 }
 
-module.exports = {
-    tokenSender
-};
+module.exports = new tokenSender();
