@@ -1,0 +1,14 @@
+ion-button[color="danger"]{
+    text-transform: initial;
+}
+ion-content{
+    --background: var(--ion-color-danger);
+}
+.login-card{
+    --background: beige;
+}
+p{
+    color: red;
+    display: none;
+    font-size: 0.8em;
+}

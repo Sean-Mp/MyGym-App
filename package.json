@@ -1,5 +1,9 @@
 {
   "dependencies": {
+    "@capacitor/action-sheet": "^6.0.3",
+    "@capacitor/local-notifications": "^6.1.1",
+    "@capacitor/share": "^6.0.3",
+    "@capacitor/toast": "^6.0.3",
     "bcryptjs": "^2.4.3",
     "dotenv": "^16.4.5",
     "express": "^4.21.0",

@@ -47,7 +47,7 @@ app.post('/signup', async (req, res) => {
     //Check if username, email and password is valid
     //Username will be valid if the length of the string is > 5
     //Password will require to be at least 8 characters, including numbers, special character and upper and lower case letters
-    //email will have to be a valid email]
+    //email will have to be a valid email
 
     if(username.length <= 5)
     {

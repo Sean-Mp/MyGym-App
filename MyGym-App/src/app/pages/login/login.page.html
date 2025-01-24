@@ -1,0 +1,27 @@
+<ion-content>
+  <div class = "flex-center">
+    <ion-card class = "login-card">
+      <ion-card-header>
+        <ion-card-title color = "danger">MyGym</ion-card-title>
+      </ion-card-header>
+    
+      <ion-card-content>
+        <form (ngSubmit)="onLogin()">
+          <ion-item class = "login-card">
+            <ion-label position = "floating">Username or Email</ion-label>
+            <ion-input [(ngModel)]="usernameOrEmail" [(ngModel)]="usernameOrEmail" name = "email" type="email"></ion-input>
+          </ion-item>
+          <ion-item class = "login-card">
+            <ion-label position = "floating">Password</ion-label>
+            <ion-input [(ngModel)]="password" name = "password" type="password"></ion-input>
+            <p *ngIf="userError" class = "error-message">Invalid username or password</p>
+          </ion-item>
+          <br>
+          <ion-button color = "dark" fill = "clear" size = "full" (click)="onForgotPassword()">Forgot Password?</ion-button>
+          <ion-button type = "submit" color = "danger" size = "full">Login</ion-button>
+          <ion-button color = "danger" fill = "clear" size = "full" (click)="onRegister()">Register</ion-button>
+      </form>
+      </ion-card-content>
+    </ion-card>
+  </div>
+</ion-content>

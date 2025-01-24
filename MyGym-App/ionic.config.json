@@ -1,0 +1,7 @@
+{
+  "name": "MyGym-App",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "angular-standalone"
+}
