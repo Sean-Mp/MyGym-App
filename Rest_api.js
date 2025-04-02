@@ -1,9 +1,9 @@
 //Will setup and handle the REST api endpoint for the app, sends a json payload back
 //Will handle POST, GET and PATCH
 /*  POST: /signup and /login
-*   GET /user retrieving a user's profile, /verify a users account
+*   GET /user retrieving a user's profile, /verify a users account, /reset a users password
 *   PUT /user for creating workouts, exercises, ingredients and meals
-*   PATCH /user userId updating a user's profile, workout, ingredients or meals
+*   PATCH /user userId updating a user's profile, workout, ingredients or meals, /forgot-password send an email to reset a users password
 *   DELETE /user userId deleting a user's profile, workout or meals
 */
 
@@ -81,8 +81,8 @@ app.post('/signup', async (req, res) => {
         //Check for duplicate user
         if(await userConn.checkUserExists(username, email))
         {
-            return res.status(400).send({
-                status: 'HTTP/1.1 400 Bad Request',
+            return res.status(403).send({
+                status: 'HTTP/1.1 403 Bad Request',
                 message: "user already exists"
             });
         }
@@ -90,11 +90,9 @@ app.post('/signup', async (req, res) => {
         //insert new user
         await userConn.insertUser(username, password, email);
 
-        const token = jwt.sign({ email }, 'key', { expiresIn: '10d' });
-
         const sender = process.env.EMAIL_USERNAME;
         const receiver = email;
-        tokenSender.sendMail(sender, receiver, token);
+        tokenSender.sendMail(sender, receiver);
     }
     catch(error)
     {
@@ -363,7 +361,7 @@ app.get('/verify', async (req, res) => {
 
         if(!await userConn.verifyEmail(email))
         {
-            return res.status(400).send({
+            return res.status(403).send({
                 status: 'HTTP/1.1 400 Bad Request',
                 message: 'user doesnt exist'
             });
@@ -388,6 +386,59 @@ app.get('/verify', async (req, res) => {
         }
     }
 });
+app.get('/reset', async(req, res) => {
+    const token = req.query.token;
+
+    if(!token)
+    {
+        return res.status(400).send({
+            status: 'HTTP/1.1 400 Bad Request',
+            message: 'Token not found'
+        });
+    }
+
+    const userConn = new UserDatabase();
+    try{
+        const decode = jwt.verify(token, 'ourSecretKey');
+        const email = decode.email;
+
+        if(!await userConn.verifyEmail(email))
+        {
+            return res.status(403).send({
+                status: 'HTTP/1.1 400 Bad Request',
+                message: 'user doesnt exist'
+            });
+        }
+
+        if(await userConn.updatePassword(email))
+        {
+            res.status(200).send({
+                status: 'HTTP/1.1 200 OK',
+                message: 'Email successfully verified'
+            });
+        }
+        else
+        {
+            return res.status(500).send({
+                status: "HTTP/1.1 500 Internal Server Error",
+                message: error.message
+            });
+        }
+    }
+    catch(error)
+    {
+        return res.status(500).send({
+            status: "HTTP/1.1 500 Internal Server Error",
+            message: error.message
+        });
+    }
+    finally{
+        if(userConn && typeof userConn.destruct === 'function')
+        {
+            userConn.destruct();
+        }
+    }
+})
 app.put('/user', async (req, res) => {
     const user = req.body;
 
@@ -906,6 +957,62 @@ app.patch('/user', async (req, res) => {
         });
     }
 });
+app.patch('/forgot-password', async(req, res) => {
+    const user = req.body;
+
+    if(!user || Object.keys(user).length === 0)
+    {
+        return res.status(400).send({
+            status: 'HTTP/1.1 400 Bad Request',
+            message: 'JSON body empty'
+        });
+    }
+    else if(!user.email)
+    {
+        return res.status(400).send({
+            status: 'HTTP/1.1 400 Bad Request', 
+            message: 'email not provided'
+        });
+    }
+
+    const userConn = new UserDatabase();
+
+    try{
+        const verifyUser = await userConn.verifyEmail(user.email);
+        if(!verifyUser)
+        {
+            return res.status(403).send({
+                status: 'HTTP/1.1 403 Bad Request',
+                message: 'user doesnt exist'
+            });
+        }
+        else
+        {
+            const sender = process.env.EMAIL_USERNAME;
+            const receiver = user.email;
+            tokenSender.sendResetMail(sender, receiver);
+
+            return res.status(200).send({
+                status: 'HTTP/1.1 200 OK',
+                message: 'Reset email sent successfully'
+            });
+        }
+    }
+    catch(error)
+    {
+        return res.status(500).send({
+            status: 'HTTP/1.1 500 Internal Server Error',
+            message: error.message
+        });
+    }
+    finally{
+        if(userConn && typeof userConn.destruct === 'function')
+        {
+            userConn.destruct();
+        }
+    }
+
+})
 app.delete('/user', async (req, res) => {
     const user = req.body;
 
@@ -923,7 +1030,7 @@ app.delete('/user', async (req, res) => {
         const verifyUser = await userConn.verifyUserID(user.user_id);
         if(!verifyUser)
         {
-            return res.status(400).send({
+            return res.status(403).send({
                 status: 'HTTP/1.1 400 Bad Request',
                 message: 'user doesnt exist'
             });

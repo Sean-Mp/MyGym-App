@@ -15,15 +15,16 @@ const transporter = nodemailer.createTransport({
     }
 });
 
-const token = jwt.sign({
-    data: 'Token Data' },
-    'ourSecretKey', 
-    { expiresIn: '30d' }  
-); 
-
 class tokenSender{
 
     createMailConfigurations(sender, receiver, token){
+        const token = jwt.sign({
+            email: receiver,
+            data: 'Token Data' },
+            'ourSecretKey', 
+            { expiresIn: '30d' }  
+        ); 
+
         return{
             from: sender,
             to: receiver,
@@ -31,6 +32,22 @@ class tokenSender{
             text: `Hi, Welcome to MyGym, You have recently created a MyGym account
                    Please follow the given link to verify your email:  
                    http://localhost:3000/verify/${token}`
+        }
+    }
+    forgotMailConfigurations(sender, receiver, token){
+        const token = jwt.sign({
+            email: receiver,
+            data: 'Token Data' },
+            'ourSecretKey', 
+            { expiresIn: '30d' }  
+        ); 
+        return{
+            from: sender,
+            to: receiver,
+            subject: 'Password Reset',
+            text: `Hi, You have requested a password reset on your account
+                   If this wasnt you please ignore this email:
+                   http://localhost:3000/reset/${token}`
         }
     }
     
@@ -42,8 +59,17 @@ class tokenSender{
             if(error){
                 throw new Error(error);
             }
-            console.log('Email Sent Successfully');
-            console.log(info);
+        });
+    }
+    sendResetMail(sender, receiver)
+    {
+        const mailConfiguration = this.forgotMailConfigurations(sender, receiver, token);
+
+        transporter.sendMail(mailConfiguration, function(err){
+            if(err)
+            {
+                throw new Error(error);
+            }
         });
     }
 }

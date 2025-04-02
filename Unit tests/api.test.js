@@ -122,6 +122,14 @@ describe('REST API Tests', () => {
             expect(response.body.message).toBe('invalid password');
         });
 
+        it('should return 403 if user already exists', async () => {
+            userDbMock.checkUserExists.mockResolvedValue(true);
+            const response = await request(app).post('/signup').send({ username: 'testuser', email: 'test@test.com', password: 'Password1!' });
+
+            expect(response.status).toBe(403);
+            expect(response.body.message).toBe('user already exists');
+        });
+
         it('should return 200 and send verification email if user is successfully created', async () => {
             userDbMock.checkUserExists.mockResolvedValue(false);
             userDbMock.insertUser.mockResolvedValue(true);

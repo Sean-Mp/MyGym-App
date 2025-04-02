@@ -244,6 +244,20 @@ class UserDatabase{
             })
         })
     }
+    updatePassword(email)
+    {
+        return new Promise((resolve, reject) => {
+            const sql = "UPDATE users SET password = ? WHERE email = ?";
+            
+            this.conn.query(sql, [email], (error) => {
+                if(error)
+                {
+                    reject(error);
+                }
+                resolve(true);
+            })
+        })
+    }
     getLastLogin(id)
     {
         return new Promise((resolve, reject) => {
