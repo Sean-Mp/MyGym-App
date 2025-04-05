@@ -2,24 +2,167 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule} from '@angular/forms';
 import { RouterOutlet } from '@angular/router';
-import { IonContent, IonTabs, IonTabBar, IonTabButton, IonIcon, IonTab, IonHeader, IonToolbar, IonTitle, IonCard } from '@ionic/angular/standalone';
+import { IonContent, IonIcon, IonHeader, IonToolbar, IonTitle, IonCard, IonButton, IonLabel } from '@ionic/angular/standalone';
 import { GlobalTabComponent } from '../global-tab/global-tab.component';
+import { ApiService } from '../api.service';
+import { StorageService } from '../storage.service';
+import { pencilSharp, addSharp} from 'ionicons/icons';
+import { addIcons } from 'ionicons';
+import { Workout } from './workout.model';
+import { Router } from '@angular/router';
 
-
+addIcons({
+  'pen-sharp': pencilSharp,
+  'add-sharp': addSharp
+});
 @Component({
   selector: 'app-home',
   templateUrl: './home.page.html',
   styleUrls: ['./home.page.scss'],
   standalone: true,
-  imports: [IonCard, IonTitle, IonToolbar, IonHeader, IonTab, IonIcon, IonTabButton, IonTabBar, IonTabs, IonContent, CommonModule, FormsModule, GlobalTabComponent, RouterOutlet]
+  imports: [IonLabel, IonButton, IonIcon, IonCard, IonTitle, IonToolbar, IonHeader, IonContent, CommonModule, FormsModule, GlobalTabComponent, RouterOutlet]
 })
 
 export class HomePage implements OnInit {
 
-  constructor() { }
+  constructor(private apiService: ApiService, private storage: StorageService, private router: Router) { }
 
   ngOnInit() {
+    //fetchProfile()
   }
 
+  async fetchProfile() {
+    const centerCards = document.getElementById('flex-center');
+    try{
 
+      this.router.navigate(['loader']);
+      const userID = await this.storage.get('userID');
+
+      const req1 = {
+        user_id: userID,
+        type: 'profile'
+      };
+
+      const req2 = {
+        user_id: userID,
+        type: 'workout'
+      };
+      
+      try{
+        const responseProfile = await this.apiService.sendGetRequest(req1, "user");
+        const responseWorkout = await this.apiService.sendGetRequest(req2, "user");
+
+        if(responseProfile.status === 200 && responseWorkout.status === 200)
+        {
+          const welcomeUserElement = document.getElementById('welcome-user');
+          if (welcomeUserElement) {
+            welcomeUserElement.innerHTML = `Hi, ${responseProfile.data.username}`;
+          }
+
+          if(centerCards && responseWorkout.data.length > 0) {
+
+            // Clear previous content
+            centerCards.innerHTML = ''; 
+    
+            responseWorkout.data.forEach((workout: Workout) => {
+
+              const workoutCards = document.createElement('ion-card');
+              workoutCards.className = 'workout-card';
+              
+              const workoutViewButton = document.createElement('ion-button');
+              workoutViewButton.className = 'workout-button';
+              workoutViewButton.color = "danger";
+
+              const workoutDiv = document.createElement('div');
+              workoutDiv.className = 'workout-div';
+
+              const leftNameDiv = document.createElement('div');
+              leftNameDiv.className = 'left';
+
+              const workoutLabel = document.createElement('ion-label');
+              workoutLabel.className = 'workout-name';
+              workoutLabel.innerHTML = `${workout.workout_name}`;
+              leftNameDiv.appendChild(workoutLabel);
+
+              const centerDateDiv = document.createElement('div');
+              centerDateDiv.className = "center";
+
+              const workoutDate = document.createElement('ion-label');
+              workoutDate.className = 'workout-date';
+              workoutDate.innerHTML = `Last workout:<br> ${workout.last_workout}`;
+              centerDateDiv.appendChild(workoutDate);
+
+              const rightIconDiv = document.createElement('div');
+              rightIconDiv.className = "right";
+
+              const editWorkoutButton = document.createElement('ion-button');
+              editWorkoutButton.shape = "round";
+              const editWorkoutIcon = document.createElement('ion-icon');
+              editWorkoutIcon.slot = "icon-only";
+              editWorkoutIcon.name = 'pen-sharp';
+              editWorkoutButton.appendChild(editWorkoutIcon);
+              rightIconDiv.appendChild(editWorkoutButton);
+
+              editWorkoutButton.addEventListener('click', () => {
+
+              });
+
+              workoutDiv.appendChild(leftNameDiv);
+              workoutDiv.appendChild(centerDateDiv);
+              workoutDiv.appendChild(rightIconDiv);
+
+              workoutViewButton.appendChild(workoutDiv);
+              workoutCards.appendChild(workoutViewButton);
+              centerCards.appendChild(workoutCards);
+            });
+          }
+        }
+        else
+        {
+          if(centerCards) {
+            const workoutDiv = document.createElement('div');
+            workoutDiv.className = 'error-div';
+            const errorMessage = document.createElement('ion-label');
+            errorMessage.innerHTML = 'Error fetching workout data. Please try again.';
+            workoutDiv.appendChild(errorMessage);
+            centerCards.appendChild(workoutDiv);
+          }
+        }
+      }
+      catch(error){
+        console.error(error);
+
+        if(centerCards)
+        {
+          const workoutDiv = document.createElement('div');
+          workoutDiv.className = 'error-div';
+          const errorMessage = document.createElement('ion-label');
+          errorMessage.innerHTML = 'Error fetching workout data. Please try again.';
+          workoutDiv.appendChild(errorMessage);
+          centerCards.appendChild(workoutDiv);
+        }
+      }
+    }
+    catch(error) {
+      console.error(error);
+
+      if(centerCards) {
+        const workoutDiv = document.createElement('div');
+        workoutDiv.className = 'error-div';
+        const errorMessage = document.createElement('ion-label');
+        errorMessage.innerHTML = 'Error fetching data. Please try logging in again.';
+        workoutDiv.appendChild(errorMessage);
+        centerCards.appendChild(workoutDiv);
+      }
+    }
+    finally{
+      this.router.navigate(['/home']);
+    }
+  }
+  viewWorkoutInfo(workoutID: number){
+
+  }
+  editWorkout(workoutID: number) {
+
+  }
 }

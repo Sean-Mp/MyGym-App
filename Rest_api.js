@@ -93,6 +93,15 @@ app.post('/signup', async (req, res) => {
         const sender = process.env.EMAIL_USERNAME;
         const receiver = email;
         tokenSender.sendMail(sender, receiver);
+
+        //get new user id
+        let loggedUser_id = await userConn.getUserID(username, email, password);
+        
+        res.status(200).send({
+            status: 'HTTP/1.1 200 OK',
+            message: 'User successfully created',
+            user_id: loggedUser_id
+        });
     }
     catch(error)
     {
@@ -107,13 +116,6 @@ app.post('/signup', async (req, res) => {
             userConn.destruct();
         }
     }
-
-    res.status(200).send({
-        status: 'HTTP/1.1 200 OK',
-        message: 'User successfully created'
-    });
-
-
 });
 
 app.post('/login', async (req, res) => {
@@ -162,7 +164,7 @@ app.post('/login', async (req, res) => {
     const password = user.password;
     //check if user exists in the database
     const userConn = new UserDatabase();
-    var loggedUser_id;
+    let loggedUser_id;
 
     try{
         if(!await userConn.verifyUser(username, email, password))
@@ -172,7 +174,7 @@ app.post('/login', async (req, res) => {
                 message: "user doesnt exists"
             });
         }
-        loggedUser_id = userConn.getUserID(username, email);
+        loggedUser_id = await userConn.getUserID(username, email, password);
         userConn.updateLastLogin(loggedUser_id);
     }
     catch(error)
@@ -194,8 +196,7 @@ app.post('/login', async (req, res) => {
         message: "User succefully logged in",
         user_id: loggedUser_id
     });
-})
-
+});
 
 //user profile retrieval
 app.get('/user', async (req, res) => {

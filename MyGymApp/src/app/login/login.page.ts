@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { IonContent, IonCard, IonCardTitle, IonItem, IonInput, IonCardHeader, IonCardContent, IonButton, IonLabel, IonCardSubtitle } from '@ionic/angular/standalone';
 import { Router } from '@angular/router';
 import { ApiService } from '../api.service';
+import { StorageService } from '../storage.service';
 
 @Component({
   selector: 'app-login',
@@ -19,7 +20,7 @@ export class LoginPage implements OnInit {
   userError: boolean = false;
   serverError: boolean = false;
 
-  constructor(private router: Router, private apiService: ApiService) { }
+  constructor(private router: Router, private apiService: ApiService, private storage: StorageService) { }
 
   ngOnInit(): void {
       
@@ -48,6 +49,7 @@ export class LoginPage implements OnInit {
 
     if(response.status === 200)
     {
+      await this.storage.set('userID', response.data.user_ID);
       this.router.navigate(['/home']);
     }
     else if(response.status === 400)

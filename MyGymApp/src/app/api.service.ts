@@ -19,4 +19,10 @@ export class ApiService {
     const url = `${this.apiUrl}/${endpoint}`;
     return await firstValueFrom(this.http.patch(url, data));
   }
+
+  async sendGetRequest(data: any, endpoint: string): Promise<any>{
+    const url = `${this.apiUrl}/${endpoint}`;
+    return await firstValueFrom(this.http.get(url, {params: data}));
+  }
+
 }

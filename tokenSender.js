@@ -17,7 +17,7 @@ const transporter = nodemailer.createTransport({
 
 class tokenSender{
 
-    createMailConfigurations(sender, receiver, token){
+    createMailConfigurations(sender, receiver){
         const token = jwt.sign({
             email: receiver,
             data: 'Token Data' },
@@ -34,7 +34,7 @@ class tokenSender{
                    http://localhost:3000/verify/${token}`
         }
     }
-    forgotMailConfigurations(sender, receiver, token){
+    forgotMailConfigurations(sender, receiver){
         const token = jwt.sign({
             email: receiver,
             data: 'Token Data' },
@@ -53,9 +53,9 @@ class tokenSender{
     
     sendMail(sender, receiver)
     {
-        const mailConfiguration = this.createMailConfigurations(sender, receiver, token);
+        const mailConfiguration = this.createMailConfigurations(sender, receiver);
 
-        transporter.sendMail(mailConfiguration, function(error, info){
+        transporter.sendMail(mailConfiguration, function(error){
             if(error){
                 throw new Error(error);
             }
@@ -63,12 +63,12 @@ class tokenSender{
     }
     sendResetMail(sender, receiver)
     {
-        const mailConfiguration = this.forgotMailConfigurations(sender, receiver, token);
+        const mailConfiguration = this.forgotMailConfigurations(sender, receiver);
 
         transporter.sendMail(mailConfiguration, function(err){
             if(err)
             {
-                throw new Error(error);
+                throw new Error(err);
             }
         });
     }

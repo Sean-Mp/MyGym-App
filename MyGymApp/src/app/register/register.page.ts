@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { IonContent, IonCardTitle, IonCard, IonCardHeader, IonInput, IonItem, IonLabel, IonButton, IonCardContent, IonCardSubtitle } from '@ionic/angular/standalone';
 import { ApiService } from '../api.service';
 import { Router } from '@angular/router';
+import { StorageService } from '../storage.service';
 
 @Component({
   selector: 'app-register',
@@ -21,7 +22,7 @@ export class RegisterPage implements OnInit {
   userExistsError: boolean = false;
   serverError: boolean = false;
 
-  constructor(private router: Router, private apiService: ApiService) { }
+  constructor(private router: Router, private apiService: ApiService, private storage: StorageService) { }
 
   ngOnInit(): void {
   }
@@ -39,6 +40,7 @@ export class RegisterPage implements OnInit {
 
       if(response.status === 200)
       {
+        await this.storage.set('userID', response.data.user_ID);
         this.router.navigate(['/home']);
       }
       else if(response.status === 400)
