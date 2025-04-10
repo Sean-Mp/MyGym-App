@@ -25,4 +25,9 @@ export class ApiService {
     return await firstValueFrom(this.http.get(url, {params: data}));
   }
 
+  async sendPutRequest(data: any, endpoint: string): Promise<any>{
+    const url = `${this.apiUrl}/${endpoint}`;
+    return await firstValueFrom(this.http.put(url, {params: data}));
+  }
+
 }

@@ -2,14 +2,18 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule} from '@angular/forms';
 import { RouterOutlet } from '@angular/router';
-import { IonContent, IonIcon, IonHeader, IonToolbar, IonTitle, IonCard, IonButton, IonLabel } from '@ionic/angular/standalone';
+import { IonContent, IonIcon, IonHeader, IonToolbar, IonTitle, IonCard, IonButton, IonLabel, IonFab, IonFabButton } from '@ionic/angular/standalone';
 import { GlobalTabComponent } from '../global-tab/global-tab.component';
 import { ApiService } from '../api.service';
 import { StorageService } from '../storage.service';
 import { pencilSharp, addSharp} from 'ionicons/icons';
 import { addIcons } from 'ionicons';
-import { Workout } from './workout.model';
+import { Workout } from '../models/workout.model';
 import { Router } from '@angular/router';
+import { ModalController } from '@ionic/angular/standalone';
+import { ViewWorkoutComponent } from '../view-workout/view-workout.component';
+import { EditWorkoutComponent } from '../edit-workout/edit-workout.component';
+import { AddWorkoutComponent } from '../add-workout/add-workout.component';
 
 addIcons({
   'pen-sharp': pencilSharp,
@@ -25,10 +29,14 @@ addIcons({
 
 export class HomePage implements OnInit {
 
-  constructor(private apiService: ApiService, private storage: StorageService, private router: Router) { }
+  constructor(
+    private apiService: ApiService, 
+    private storage: StorageService, 
+    private router: Router,
+    private modalController: ModalController) { }
 
   ngOnInit() {
-    //fetchProfile()
+    // this.fetchProfile()
   }
 
   async fetchProfile() {
@@ -104,7 +112,7 @@ export class HomePage implements OnInit {
               rightIconDiv.appendChild(editWorkoutButton);
 
               editWorkoutButton.addEventListener('click', () => {
-
+                this.editWorkout(workout.workout_id);
               });
 
               workoutDiv.appendChild(leftNameDiv);
@@ -112,6 +120,11 @@ export class HomePage implements OnInit {
               workoutDiv.appendChild(rightIconDiv);
 
               workoutViewButton.appendChild(workoutDiv);
+
+              workoutViewButton.addEventListener('click', () => {
+                this.viewWorkoutInfo(workout.workout_id);
+              });
+
               workoutCards.appendChild(workoutViewButton);
               centerCards.appendChild(workoutCards);
             });
@@ -159,10 +172,25 @@ export class HomePage implements OnInit {
       this.router.navigate(['/home']);
     }
   }
-  viewWorkoutInfo(workoutID: number){
-
+  async viewWorkoutInfo(workoutID: number){
+    const modal = await this.modalController.create({
+      component: ViewWorkoutComponent,
+      componentProps: { workoutID: workoutID }
+    });
+    return await modal.present();
   }
-  editWorkout(workoutID: number) {
-
+  async editWorkout(workoutID: number) {
+    const modal = await this.modalController.create({
+      component: EditWorkoutComponent,
+      componentProps: { workoutID: workoutID }
+    });
+    return await modal.present();
+  }
+  async createWorkout()
+  {
+    const modal = await this.modalController.create({
+      component: AddWorkoutComponent, 
+    });
+    return await modal.present();
   }
 }

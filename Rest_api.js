@@ -505,7 +505,8 @@ app.put('/user', async (req, res) => {
 
                 return res.status(200).send({
                     status: "HTTP/1.1 200 OK",
-                    message: "Workout successfully created"
+                    message: "Workout successfully created",
+                    workout_id: workout_id
                 });
             }
         }

@@ -4,7 +4,7 @@
   </ion-toolbar>
 </ion-header>
 
-<ion-content [fullscreen]="true">
+<ion-content [fullscreen]="true" overflow-scroll="true">
   <div id = "flex-center">
     <ion-card class = "workout-card">
       <ion-button color = "danger" class = "workout-button">
@@ -23,10 +23,11 @@
         </div>
       </ion-button>
     </ion-card>
-    </div>
-    <ion-button shape = "round" id = "add-new-workout">
+    <ion-button shape = "round" (click)="createWorkout()" id= "add-new-workout"> 
       <ion-icon slot= "icon-only" name="add-sharp"></ion-icon>
     </ion-button>
-  <router-outlet></router-outlet>
+    </div>
+    <router-outlet></router-outlet>
+  </ion-content>
+  
   <app-global-tab></app-global-tab>
-</ion-content>

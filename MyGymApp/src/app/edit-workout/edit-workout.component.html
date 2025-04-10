@@ -1,3 +1,15 @@
-<p>
-  edit-workout works!
-</p>
+<ion-modal>
+  <ion-header>
+    <ion-toolbar>
+      <ion-buttons slot = "start">
+        <ion-button (click)="closeModal()">Close</ion-button>
+      </ion-buttons>
+      <ion-title id = "workout-name"></ion-title>
+      <ion-buttons slot = "end">
+        <ion-button (click)="saveWorkout()" [strong]="true">Save Workout</ion-button>
+      </ion-buttons>
+    </ion-toolbar>
+  </ion-header>
+  <ion-content class = "exercises">
+  </ion-content>
+</ion-modal>
