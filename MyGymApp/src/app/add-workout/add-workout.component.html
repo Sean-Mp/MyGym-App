@@ -1,0 +1,54 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot = "start">
+      <ion-button (click)="closeModal()">Close</ion-button>
+    </ion-buttons>
+    <ion-title id = "workout-name"></ion-title>
+    <ion-buttons slot = "end">
+      <ion-button (click)="addWorkout()" [strong]="true">Add Workout</ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+<ion-content class = "exercises">
+    <ion-item>
+      <ion-label position="floating" id = "workout-name">Workout Name</ion-label>
+      <ion-input type="text" placeholder="Workout 1" id = "workout-name-input" [(ngModel)]="workoutName"></ion-input>
+    </ion-item>
+    <div *ngFor="let exercise of exerciseArr" class="exercise-container" [class.shrunk]="exercise.saved">
+    <ng-container *ngIf="!exercise.saved; else savedView">
+      <div class="exercise-left">
+        <ion-label>Exercise Name:</ion-label>
+        <ion-input type="text" placeholder="Exercise Name" [(ngModel)]="exercise.exercise_name"></ion-input>
+
+        <ion-label>Reps:</ion-label>
+        <ion-input type="text" placeholder="10-12" (ionInput)="exercise.rep_range = getRepArr(($event.target.value || '').toString())"></ion-input>
+
+        <ion-label>Sets:</ion-label>
+        <ion-input type="number" placeholder="3" [(ngModel)]="exercise.sets"></ion-input>
+      </div>
+
+      <div class="exercise-right">
+        <ion-label>Current Weight: Kg</ion-label>
+        <ion-input type="number" placeholder="50kg" [(ngModel)]="exercise.current_weight"></ion-input>
+
+        <ion-label>Goal Weight: Kg</ion-label>
+        <ion-input type="number" placeholder="60kg" [(ngModel)]="exercise.goal_weight"></ion-input>
+      </div>
+
+      <div class="exercise-center">
+        <ion-label>Notes:</ion-label>
+        <ion-textarea placeholder="My Exercise notes" [(ngModel)]="exercise.notes"></ion-textarea>
+
+        <p *ngIf="exerciseError" class="error-message">Please fill in all fields correctly.</p>
+        <ion-button class="save-exercise-button" (click)="saveExercise(exercise)">Save Exercise</ion-button>
+      </div>
+    </ng-container>
+
+    <ng-template #savedView>
+      <h3 class="saved-exercise-name">{{ exercise.exercise_name }}</h3>
+    </ng-template>
+  </div>
+    <ion-button shape = "round" (click)="createExercise()" id="add-new-exercise">
+      <ion-icon slot="icon-only" name="add-sharp"></ion-icon>
+    </ion-button>
+</ion-content>
