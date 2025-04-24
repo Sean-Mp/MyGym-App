@@ -10,10 +10,6 @@
   </ion-toolbar>
 </ion-header>
 <ion-content class = "exercises">
-    <ion-item>
-      <ion-label position="floating" id = "workout-name">Workout Name</ion-label>
-      <ion-input type="text" placeholder="Workout 1" id = "workout-name-input" [(ngModel)]="workoutName"></ion-input>
-    </ion-item>
     <div *ngFor="let exercise of exerciseArr" class="exercise-container" [class.shrunk]="exercise.saved">
     <ng-container *ngIf="!exercise.saved; else savedView">
       <div class="exercise-left">

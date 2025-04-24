@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { addSharp} from 'ionicons/icons';
 import { addIcons } from 'ionicons';
-import { IonHeader, IonTextarea, IonToolbar, IonButtons, IonButton, IonTitle, IonContent, IonItem, IonInput, IonLabel, IonIcon } from '@ionic/angular/standalone';
+import { IonHeader, IonTextarea, IonToolbar, IonButtons, IonButton, IonTitle, IonContent, IonInput, IonLabel, IonIcon } from '@ionic/angular/standalone';
 import { Exercise } from '../models/exercise.model';
 import { StorageService } from '../storage.service';
 import { ApiService } from '../api.service';
@@ -16,7 +16,7 @@ addIcons({
   selector: 'app-add-workout',
   templateUrl: './add-workout.component.html',
   styleUrls: ['./add-workout.component.scss'],
-  imports: [IonHeader, IonTextarea, IonToolbar, IonButtons, IonButton, IonTitle, IonContent, IonItem, IonInput, IonLabel, IonIcon, FormsModule, CommonModule],
+  imports: [IonHeader, IonTextarea, IonToolbar, IonButtons, IonButton, IonTitle, IonContent, IonInput, IonLabel, IonIcon, FormsModule, CommonModule],
   providers: [ModalController]
 })
 export class AddWorkoutComponent  implements OnInit {

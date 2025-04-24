@@ -5,6 +5,7 @@ require('dotenv').config({ path : 'config.env' });
 const mysql = require('mysql');
 const bcrypt = require('bcryptjs');
 const { TokenSender } = require('./tokenSender');
+const { resolveHostname } = require('nodemailer/lib/shared');
 
 //Gloabl function that is used throughout classes
 function formatDate(datetime)
@@ -20,11 +21,11 @@ function formatDate(datetime)
 }
 
 class UserDatabase{
-    static #newInstance = null;
 
     constructor(){
-        if(UserDatabase.#newInstance){
-            throw new Error("Use UserDatabase.instance()");
+
+        if(UserDatabase.instance){
+            return UserDatabase.instance;
         }
 
         this.conn = mysql.createConnection({
@@ -39,21 +40,19 @@ class UserDatabase{
             if(error) throw error;
             console.log("Database connected successfully");
         });
-        UserDatabase.#newInstance = this;
-    }
-    static instance()
-    {
-        if(!UserDatabase.#newInstance)
-        {
-            UserDatabase.#newInstance = new UserDatabase();
-        }
-        return UserDatabase.#newInstance;
+
+        UserDatabase.instance = this;
     }
     async verifyUser(username, email, password)
     {
         try{
             const sql = "SELECT username, email, password FROM users where username = ? OR email = ?";
-            const [results] = await this.conn.promise().query(sql, [username, email]);
+            const results = await new Promise((resolve, reject) => {
+                this.conn.query(sql, [username, email], (error, results) => {
+                    if (error) return reject(error);
+                    resolve(results);
+                });
+            });
             
             if(results.length === 0)
             {
@@ -74,9 +73,13 @@ class UserDatabase{
                 return false;
             }
 
-            const sql2 = "UPDATE users SET Last_Login = ? WHERE id = ?";
-            await this.conn.promise().query(sql2, [formatDate(new Date()), results[0].id]);
-
+            // const sql_update = "UPDATE users SET Last_Login = ? WHERE id = ?";
+            // await new Promise((resolve, reject) => {
+            //     this.conn.query(sql_update, [formatDate(new Date()), results[0].id], (error) => {
+            //         if (error) return reject(error);
+            //         resolve();
+            //     });
+            // });
             return true;
         }
         catch(error)
@@ -113,13 +116,12 @@ class UserDatabase{
                 {
                     reject(error);
                 }
-
                 if(results.length > 0)
                 {
-                    return reject(false);
+                    return resolve(true);
                 }
 
-                return resolve(true);
+                return resolve(false);
             });
         });
     }
@@ -128,7 +130,7 @@ class UserDatabase{
         return new Promise((resolve, reject) => {
 
             //Encrypt password
-            bcrypt.genSalt(15, (error, Salt) => {
+            bcrypt.genSalt(10, (error, Salt) => {
                 if(error) return reject(error);
 
                 bcrypt.hash(password, Salt, (error, hash) => {
@@ -142,10 +144,10 @@ class UserDatabase{
                         }
 
                         //Temp email
-                        const senderEmail = 'seanmaritz1304@gmail.com';
+                        // const senderEmail = 'seanmaritz1304@gmail.com';
                         
-                        const emailSender = new TokenSender();
-                        emailSender.sendEmail(senderEmail, email);
+                        // const emailSender = new TokenSender();
+                        // emailSender.sendEmail(senderEmail, email);
 
                         resolve(results);
                     });
@@ -153,28 +155,22 @@ class UserDatabase{
             });
         });
     }
-    getUserID(username, email, password)
+    async getUserID(username, email)
     {
         return new Promise((resolve, reject) => {
+            const sql = "SELECT ID FROM users where username = ? OR email = ?";
 
-            if(this.verifyUser(username, email, password) === true)
-            {
-                const sql = "SELECT ID FROM users where username = ? OR email = ?";
-
-                this.conn.query(sql, [username, email], (error, results) => {
-                    if(error){
-                        return reject(error);
-                    }
-                    if(results.length === 0)
-                    {
-                        return reject(false);
-                    }
-
-                    return resolve(results[0].id);
-                });
-            }
-            return reject(false);
-        });
+            this.conn.query(sql, [username, email], (error, results) => {
+                if(error){
+                    return reject(error);
+                }
+                if(results.length === 0)
+                {
+                    return reject(false);
+                }
+                return resolve(results[0].ID);
+            });
+        })
     }
     getUsername(id)
     {
@@ -190,7 +186,6 @@ class UserDatabase{
                 {
                     return reject(false);
                 }
-
                 return resolve(results[0].username);
             });
         });
@@ -274,7 +269,7 @@ class UserDatabase{
                     return reject(error);
                 }
                 
-                return resolve(true);
+                return resolve(results[0].Last_Login);
             });
         });
     }
@@ -309,7 +304,7 @@ class UserDatabase{
                     return;
                 }
 
-                UserDatabase.#newInstance = null;
+                this.conn = null;
                 resolve(true);
             });
         });
@@ -317,21 +312,12 @@ class UserDatabase{
 }
 
 class WorkoutDatabase{
-    static #newInstance = null;
 
-    static instance()
-    {
-        if(this.#newInstance === null)
-        {
-            this.#newInstance = new WorkoutDatabase();
-        }
-        return this.#newInstance;
-    }
     constructor()
     {
-        if(WorkoutDatabase.#newInstance)
+        if(WorkoutDatabase.instance)
         {
-            throw new Error("Use WorkoutDatabase.instance()");
+            return WorkoutDatabase.instance;
         }
 
         this.conn = mysql.createConnection({
@@ -345,7 +331,9 @@ class WorkoutDatabase{
         this.conn.connect(function(error){
             if(error) throw error;
             console.log("Database connected successfully");
-        })
+        });
+
+        WorkoutDatabase.instance = this;
     }
     getWorkout(user_id)
     {
@@ -357,11 +345,14 @@ class WorkoutDatabase{
                     return reject(error);
                 }
 
+                console.log(results);
+                console.log(results.length);
+                
+
                 if(results.length === 0)
                 {
-                    return reject(false);
+                    return resolve(false);
                 }
-
                 return resolve(results);
             });
         });
@@ -383,16 +374,16 @@ class WorkoutDatabase{
     }
     updateWorkoutDate(date, workout_id)
     {
+
         return new Promise((resolve, reject) => {
-
             const sql = "UPDATE workouts SET last_workout = ? WHERE workout_id = ?";
+            const formattedDate = formatDate(date);
 
-            this.conn.query(sql, [formatDate(date), workout_id], (error) =>{
+            this.conn.query(sql, [formattedDate, workout_id], (error) =>{
                 if(error)
                 {
                     return reject(error);
                 }
- 
                 resolve(true);
             });
         });
@@ -400,7 +391,7 @@ class WorkoutDatabase{
     updateName(new_name, workout_id)
     {
         return new Promise((resolve, reject) =>{
-            const sql = "UPDATE workouts SET name = ? WHERE workout_id = ?";
+            const sql = "UPDATE workouts SET workout_name = ? WHERE workout_id = ?";
 
             this.conn.query(sql, [new_name, workout_id], (error) =>{
                 if(error)
@@ -443,7 +434,6 @@ class WorkoutDatabase{
                     return;
                 }
 
-                WorkoutDatabase.#newInstance = null;
                 resolve(true);
             });
         });
@@ -451,21 +441,12 @@ class WorkoutDatabase{
 }
 
 class ExerciseDatabase{
-    static #newInstance = null;
-
-    static instance()
-    {
-        if(this.#newInstance === null)
-        {
-            this.#newInstance = new ExerciseDatabase();
-        }
-        return this.#newInstance;
-    }
     constructor()
     {
-        if(ExerciseDatabase.#newInstance)
+
+        if(ExerciseDatabase.instance)
         {
-            throw new Error("Use ExerciseDatabase.instance()");
+            return ExerciseDatabase.instance;
         }
 
         this.conn = mysql.createConnection({
@@ -479,7 +460,9 @@ class ExerciseDatabase{
         this.conn.connect(function(error){
             if(error) throw error;
             console.log("Database connected successfully");
-        })
+        });
+
+        ExerciseDatabase.instance = this;
     }
     createExercise(name, rep_range, sets, currentWeight, goalWeight, workoutID, notes)
     {
@@ -494,6 +477,25 @@ class ExerciseDatabase{
             });
         });
     }
+    workoutExists(workout_id)
+    {
+        return new Promise((resolve, reject) => {
+            const sql = "SELECT * FROM workouts WHERE workout_id = ?";
+            
+            this.conn.query(sql, [workout_id], (error, results) =>{
+                if(error)
+                {
+                    return reject(error);
+                }
+                if(results.length === 0)
+                {
+                    return resolve(false);
+                }
+
+                return resolve(true);
+            })
+        })
+    }
     getFullWorkout(workout_id)
     {
         return new Promise((resolve, reject) => {
@@ -506,12 +508,31 @@ class ExerciseDatabase{
                 }
                 if(results.length === 0)
                 {
-                    return reject(false);
+                    return resolve(false);
                 }
 
                 return resolve(results);
             })
         })
+    }
+    getExercise(exercise_id)
+    {
+        return new Promise((resolve, reject) => {
+            const sql = "SELECT * FROM exercises WHERE exercise_id = ?";
+
+            this.conn.query(sql, [exercise_id], (error, results) => {
+                if(error)
+                {
+                    return reject(error);
+                }
+                if(results.length === 0)
+                {
+                    return resolve(false);
+                }
+
+                return resolve(results);
+            })
+        });
     }
     updateName(new_name, exercise_id)
     {
@@ -649,7 +670,6 @@ class ExerciseDatabase{
                     return;
                 }
 
-                ExerciseDatabase.#newInstance = null;
                 resolve(true);
             });
         });
@@ -657,20 +677,11 @@ class ExerciseDatabase{
 }
 
 class NutritionDatabase{
-    static #newInstance = null;
-
-    static instance(){
-        if(this.#newInstance === null)
-        {
-            this.#newInstance = new NutritionDatabase();
-        }
-        return this.#newInstance;
-    }
     constructor()
     {
-        if(NutritionDatabase.#newInstance)
+        if(NutritionDatabase.instance)
         {
-            throw new Error("Use NutritionDatabase.instance()");
+            return NutritionDatabase.instance;
         }
 
         this.conn = mysql.createConnection({
@@ -684,7 +695,9 @@ class NutritionDatabase{
         this.conn.connect(function(error){
             if(error) throw error;
             console.log("Database connected successfully");
-        })
+        });
+
+        NutritionDatabase.instance = this;
     }
     async createMeal(name, user_id)
     {
@@ -697,8 +710,12 @@ class NutritionDatabase{
                 }
 
                 try{
-                    const stats = await this.getStats(results.id);
-                    await this.updateStats(results.id, stats);
+                    // const stats = await this.getStats(results.id);
+
+                    // if(stats > 0)
+                    // {
+                    //     await this.updateStats(results.id, stats);
+                    // }
 
                     resolve(results);
                 }
@@ -713,7 +730,7 @@ class NutritionDatabase{
     getAllMeal(user_id)
     {
         return new Promise((resolve, reject) => {
-            const sql = "SELECT * FROM ingredients WHERE user_id = ?";
+            const sql = "SELECT * FROM nutrition WHERE user_id = ?";
 
             this.conn.query(sql, [user_id], (error, results) => {
                 if(error)
@@ -730,22 +747,21 @@ class NutritionDatabase{
             });
         });
     }
-    getMeal(id)
+    getMeal(meal_id)
     {
         return new Promise((resolve, reject) => {
             const sql = "SELECT * FROM nutrition WHERE id = ?";
 
-            this.conn.query(sql, [id], (error, results) => {
+            this.conn.query(sql, [meal_id], (error, results) => {
                 if(error)
                 {
                     return reject(error);
                 }
-                
                 if(results.length === 0)
                 {
-                    return reject(false);
+                    return resolve(false);
                 }
-
+                
                 return resolve(results);
             });
         });
@@ -753,7 +769,12 @@ class NutritionDatabase{
     getStats(id)
     {
         return new Promise((resolve, reject) => {
-            const sql = `SELECT sum(ingredients.calories), sum(ingredients.kilojoules) sum(ingredients.protein), sum(ingredients.carbohydrates), sum(ingredients.fat) 
+            const sql = `SELECT 
+                            SUM(ingredients.calories), 
+                            SUM(ingredients.kilojoules), 
+                            SUM(ingredients.protein), 
+                            SUM(ingredients.carbohydrates), 
+                            SUM(ingredients.fat) 
             FROM ingredients 
             LEFT JOIN nutrition ON nutrition.id = ingredients.meal_id
             WHERE ingredients.meal_id = ?`;
@@ -773,7 +794,7 @@ class NutritionDatabase{
         return new Promise((resolve, reject) => {
             const sql = "UPDATE nutrition SET calories = ?, kilojoules = ?, protein = ?, carbohydrates = ?, fat = ? WHERE id = ?";
             
-            this.conn.query(sql, [stats[0]['sum(ingredients.calories'], stats[0]['sum(ingredients.kilojoules'], stats[0]['sum(ingredients.protein)'], stats[0]['sum(ingredients.carbohydrates)'], stats[0]['sum(ingredients.fat)'], id], (error, results) =>{
+            this.conn.query(sql, [stats[0]['SUM(ingredients.calories'], stats[0]['SUM(ingredients.kilojoules'], stats[0]['SUM(ingredients.protein)'], stats[0]['SUM(ingredients.carbohydrates)'], stats[0]['SUM(ingredients.fat)'], id], (error, results) =>{
                 if(error){
                     reject(error);
                 }
@@ -828,7 +849,6 @@ class NutritionDatabase{
                     return;
                 }
 
-                NutritionDatabase.#newInstance = null;
                 resolve(true);
             });
         });
@@ -836,20 +856,10 @@ class NutritionDatabase{
 }
 
 class IngredientDatabase{
-    static #newInstance = null;
-
-    static instance()
-    {
-        if(this.#newInstance === null)
-        {
-            this.#newInstance = new IngredientDatabase();
-        }
-        return this.#newInstance;
-    }
     constructor(){
-        if(IngredientDatabase.#newInstance)
-        {
-            throw new Error("Use ExerciseDatabase.instance()");
+
+        if(IngredientDatabase.instance){
+            return IngredientDatabase.instance;
         }
 
         this.conn = mysql.createConnection({
@@ -863,7 +873,9 @@ class IngredientDatabase{
         this.conn.connect(function(error){
             if(error) throw error;
             console.log("Database connected successfully");
-        })
+        });
+
+        IngredientDatabase.instance = this;
     }
     createIngredient(name, calories, kilojoules, protein, carbohydrates, fat, meal_id)
     {
@@ -890,6 +902,26 @@ class IngredientDatabase{
             });
         });
     }
+    getAllIngredients(meal_id)
+    {
+        return new Promise((resolve, reject) => {
+            const sql = "SELECT * FROM ingredients WHERE meal_id = ?";
+
+            this.conn.query(sql, [meal_id], (error, results) => {
+                if(error)
+                    {
+                        reject(error);
+                    }
+    
+                    if(results.length === 0)
+                    {
+                        resolve(false);
+                    }
+    
+                    resolve(results);
+            });
+        });
+    }
     getIngredient(id)
     {
         return new Promise((resolve, reject) => {
@@ -903,10 +935,10 @@ class IngredientDatabase{
 
                 if(results.length === 0)
                 {
-                    reject(false);
+                    resolve(false);
                 }
 
-                resolve(true);
+                resolve(results);
             });
         });
     }
@@ -1035,7 +1067,6 @@ class IngredientDatabase{
                     return;
                 }
 
-                IngredientDatabase.#newInstance = null;
                 resolve(true);
             });
         });

@@ -17,9 +17,11 @@ const PORT = process.env.PORT || 3000;
 const app = express();
 app.use(express.json());
 
-const server = app.listen(PORT, () => {
-    console.log("Server Listening on PORT:", PORT);
-});
+if(require.main === module){
+    app.listen(PORT, () => {
+        console.log("Server listening on PORT:", PORT);
+    });
+}
 
 app.post('/signup', async (req, res) => {
     
@@ -88,16 +90,17 @@ app.post('/signup', async (req, res) => {
         }
 
         //insert new user
-        await userConn.insertUser(username, password, email);
-
-        const sender = process.env.EMAIL_USERNAME;
-        const receiver = email;
-        tokenSender.sendMail(sender, receiver);
+        const response = await userConn.insertUser(username, password, email);
 
         //get new user id
-        let loggedUser_id = await userConn.getUserID(username, email, password);
+        const loggedUser_id = response.insertId;
+
+        // const sender = process.env.EMAIL_USERNAME;
+        // const receiver = email;
+        // tokenSender.sendMail(sender, receiver);
+
         
-        res.status(200).send({
+        return res.status(200).send({
             status: 'HTTP/1.1 200 OK',
             message: 'User successfully created',
             user_id: loggedUser_id
@@ -110,19 +113,13 @@ app.post('/signup', async (req, res) => {
             message: error.message
         });
     }
-    finally{
-        if(userConn && typeof userConn.destruct === 'function')
-        {
-            userConn.destruct();
-        }
-    }
 });
 
 app.post('/login', async (req, res) => {
     const user = req.body;
 
-    let username = "";
-    let email = "";
+    let username = user.username || "";
+    let email = user.email || "";
     
     if(!user || Object.keys(user).length === 0)
     {
@@ -132,33 +129,12 @@ app.post('/login', async (req, res) => {
         });
     }
     
-    if(!user.password && (!user.username || !user.email))
+    if(!user.password || (!user.username && !user.email))
     {
         return res.status(400).send({
             staus: 'HTTP/1.1 400 Bad Request',
-            message: 'username, email or password not included'
+            message: 'username or email and password must be included'
         });
-    }
-    else if(!user.username || !user.email)
-    {
-        if(!user.username)
-        {
-            email = user.email;
-        }
-        else if(!user.email)
-        {
-            username = user.username
-        }
-
-        return res.status(400).send({
-            staus: 'HTTP/1.1 400 Bad Request',
-            message: 'username or email not included'
-        });
-    }
-    else
-    {
-        email = user.email;
-        username = user.username;
     }
             
     const password = user.password;
@@ -175,27 +151,21 @@ app.post('/login', async (req, res) => {
             });
         }
         loggedUser_id = await userConn.getUserID(username, email, password);
-        userConn.updateLastLogin(loggedUser_id);
+        await userConn.updateLastLogin(loggedUser_id);
+
+        return res.status(200).send({
+            status: "HTTP/1.1 200 OK",
+            message: "User succefully logged in",
+            user_id: loggedUser_id
+        });
     }
     catch(error)
     {
         return res.status(500).send({
             status: "HTTP/1.1 500 Internal Server Error",
-            message: error.message
+            message: error
         });
     }
-    finally{
-        if(userConn && typeof userConn.destruct === 'function')
-        {
-            userConn.destruct();
-        }
-    }
-
-    res.status(200).send({
-        status: "HTTP/1.1 200 OK",
-        message: "User succefully logged in",
-        user_id: loggedUser_id
-    });
 });
 
 //user profile retrieval
@@ -220,8 +190,8 @@ app.get('/user', async (req, res) => {
 
         if(!userExists)
         {
-            return res.status(400).send({
-                status: 'HTTP/1.1 400 Bad Request',
+            return res.status(403).send({
+                status: 'HTTP/1.1 403 Forbidden',
                 message: 'user doesnt exist'
             });
         }
@@ -229,8 +199,8 @@ app.get('/user', async (req, res) => {
         //check what type of GET request they want
         if(user.type === 'profile')
         {
-            var username = userConn.getUsername(user_id);
-            var lastLogin = userConn.getLastLogin(user_id);
+            var username = await userConn.getUsername(user_id);
+            var lastLogin = await userConn.getLastLogin(user_id);
 
             return res.status(200).send({
                 status: 'HTTP/1.1 200 OK',
@@ -243,7 +213,8 @@ app.get('/user', async (req, res) => {
         {
             try{
                 var workoutConn = new WorkoutDatabase();
-                var workout = workoutConn.getWorkout(user_id);
+                var workout = await workoutConn.getWorkout(user_id);
+                workout.last_workout = convertDateTime(new Date(workout.last_workout));
 
                 return res.status(200).send({
                     status: 'HTTP/1.1 200 OK',
@@ -258,23 +229,36 @@ app.get('/user', async (req, res) => {
                     message: error.message
                 });
             }
-            finally
+        }
+        else if(user.type == 'exercise')
+        {
+            try{
+                var exerciseConn = new ExerciseDatabase();
+                var exercise = await exerciseConn.getFullWorkout(user.workout_id);
+                
+                return res.status(200).send({
+                    status: 'HTTP/1.1 500 Internal Server Error',
+                    message: "Successfully retrived workout exercises",
+                    data: exercise
+                });
+            }
+            catch(error)
             {
-                if(workoutConn && typeof workoutConn.destruct === 'function')
-                {
-                    workoutConn.destruct();
-                }
+                return res.status(500).send({
+                    status: 'HTTP/1.1 500 Internal Server Error',
+                    message: error
+                });
             }
         }
         else if(user.type === 'meals')
         {
             try{
                 var nutritionConn = new NutritionDatabase();
-                var meal = nutritionConn.getMeal(user_id);
+                var meal = await nutritionConn.getAllMeal(user_id);
 
                 return res.status(200).send({
                     status: 'HTTP/1.1 200 OK',
-                    message: 'All user Meals',
+                    message: 'All user meals',
                     meal: meal
                 });
             }
@@ -282,15 +266,8 @@ app.get('/user', async (req, res) => {
             {
                 return res.status(500).send({
                     status: 'HTTP/1.1 500 Internal Server Error',
-                    message: error.message
+                    message: error
                 });
-            }
-            finally
-            {
-                if(nutritionConn && typeof nutritionConn.destruct === 'function')
-                {
-                    nutritionConn.destruct();
-                }
             }
         }
         else if(user.type === 'meal-stats')
@@ -309,15 +286,48 @@ app.get('/user', async (req, res) => {
             {
                 return res.status(500).send({
                     status: 'HTTP/1.1 500 Internal Server Error',
-                    message: error.message
+                    message: error
                 });
             }
-            finally
+        }
+        else if(user.type === "All-Ingredients")
+        {
+            try{
+                var ingredientConn = new IngredientDatabase();
+                const ingredients = await ingredientConn.getAllIngredients(user.meal_id);
+                
+                return res.status(200).send({
+                    status: 'HTTP/1.1 200 OK',
+                    message: 'Succesfully retrieved all ingredients',
+                    meal_ingredients: ingredients
+                });
+            }
+            catch(error)
             {
-                if(nutritionConn && typeof nutritionConn.destruct === 'function')
-                {
-                    nutritionConn.destruct();
-                }
+                return res.status(500).send({
+                    status: 'HTTP/1.1 500 Internal Server Error',
+                    message: error
+                });
+            }
+        }
+        else if(user.type === 'ingredient')
+        {
+            try{
+                var ingredientConn = new IngredientDatabase();
+                const ingredient = await ingredientConn.getIngredient(user.ingredient_id);
+
+                return res.status(200).send({
+                    status: 'HTTP/1.1 200 OK',
+                    message: 'Succesfully retrieved ingredient',
+                    ingredient: ingredient
+                });
+            }
+            catch(error)
+            {
+                return res.status(500).send({
+                    status: 'HTTP/1.1 500 Internal Server Error',
+                    message: error
+                });
             }
         }
         else
@@ -334,13 +344,6 @@ app.get('/user', async (req, res) => {
             status: "HTTP/1.1 500 Internal Server Error",
             message: error.message
         });
-    }
-    finally
-    {
-        if(userConn && typeof userConn.destruct === 'function')
-        {
-            userConn.destruct();
-        }
     }
 });
 app.get('/verify', async (req, res) => {
@@ -379,12 +382,6 @@ app.get('/verify', async (req, res) => {
             status: "HTTP/1.1 500 Internal Server Error",
             message: error.message
         });
-    }
-    finally{
-        if(userConn && typeof userConn.destruct === 'function')
-        {
-            userConn.destruct();
-        }
     }
 });
 app.get('/reset', async(req, res) => {
@@ -433,12 +430,6 @@ app.get('/reset', async(req, res) => {
             message: error.message
         });
     }
-    finally{
-        if(userConn && typeof userConn.destruct === 'function')
-        {
-            userConn.destruct();
-        }
-    }
 })
 app.put('/user', async (req, res) => {
     const user = req.body;
@@ -470,13 +461,6 @@ app.put('/user', async (req, res) => {
             message: error.message
         });
     }
-    finally
-    {
-        if(userConn && typeof userConn.destruct === 'function')
-        {
-            userConn.destruct();
-        }
-    }
 
     if(user.type === 'workout')
     {
@@ -484,11 +468,6 @@ app.put('/user', async (req, res) => {
     
         if(!user.workout_name)
         {
-            if(workoutConn && typeof workoutConn.destruct === 'function')
-            {
-                workoutConn.destruct();
-            }
-
             return res.status(400).send({
                 status: 'HTTP/1.1 400 Bad Request',
                 message: 'Workout name not included'
@@ -499,14 +478,24 @@ app.put('/user', async (req, res) => {
         {
             if(workoutConn.createWorkout(user.workout_name, user.user_id))
             {
-                const workout_id = workoutConn.getWorkout(user.user_id).workout_id;
+                const workoutReq = await workoutConn.getWorkout(user.user_id);
+                
+                let workoutId;
+                if(Array.isArray(workoutReq))
+                {
+                    workoutId = workoutReq[workoutReq.length-1].workout_id;
+                }
+                else
+                {
+                    workoutId = workoutReq.workout_id;
+                }
                 const new_date = new Date();
-                workoutConn.updateWorkoutDate(new_date, workout_id);
+                await workoutConn.updateWorkoutDate(new_date, workoutId);
 
                 return res.status(200).send({
                     status: "HTTP/1.1 200 OK",
                     message: "Workout successfully created",
-                    workout_id: workout_id
+                    workout_id: workoutId
                 });
             }
         }
@@ -516,13 +505,6 @@ app.put('/user', async (req, res) => {
                 status: "HTTP/1.1 500 Internal Server Error",
                 message: error.message
             });
-        }
-        finally
-        {
-            if(workoutConn && typeof workoutConn.destruct === 'function')
-            {
-                workoutConn.destruct();
-            }
         }
     }
     else if(user.type === 'exercise')
@@ -532,8 +514,7 @@ app.put('/user', async (req, res) => {
         //check if the workout_id is correct first
         try
         {
-            const getWorkout = await exerciseConn.getFullWorkout(user.workout_id);
-            if(!getWorkout)
+            if(!await exerciseConn.workoutExists(user.workout_id))
             {
                 return res.status(400).send({
                     status: 'HTTP/1.1 400 Bad Request',
@@ -543,23 +524,14 @@ app.put('/user', async (req, res) => {
         }
         catch(error)
         {
-            if(exerciseConn && typeof exerciseConn.destruct === 'function')
-            {
-                exerciseConn.destruct();
-            }
-
             return res.status(500).send({
                 status: 'HTTP/1.1 500 Internal Server Error',
-                message: error.message
+                message: error
             });
         }
 
         if(user.exercise_name === undefined || user.rep_range === undefined || user.sets === undefined || user.current_weight === undefined || user.goal_weight === undefined)
         {
-            if(exerciseConn && typeof exerciseConn.destruct === 'function')
-            {
-                exerciseConn.destruct();
-            }
 
             return res.status(400).send({
                 status: 'HTTP/1.1 400 Bad Request',
@@ -569,25 +541,19 @@ app.put('/user', async (req, res) => {
 
         try
         {
-            await exerciseConn.createExercise(user.exercise_name, user.rep_range, user.sets, user.current_weight, user.goal_weight, user.workout_id, user.notes);
+            const exerciseReq = await exerciseConn.createExercise(user.exercise_name, user.rep_range, user.sets, user.current_weight, user.goal_weight, user.workout_id, user.notes);
             return res.status(200).send({
                 status: "HTTP/1.1 200 OK",
-                message: "Exercise successfully created"
+                message: "Exercise successfully created",
+                exercise_id: exerciseReq.insertId
             });
         }
         catch(error)
         {
             return res.status(500).send({
                 status: "HTTP/1.1 500 Internal Server Error",
-                message: error.message
+                message: error
             });
-        }
-        finally
-        {
-            if(exerciseConn && typeof exerciseConn.destruct === 'function')
-            {
-                exerciseConn.destruct();
-            }
         }
     }
     else if(user.type === 'meal')
@@ -596,11 +562,6 @@ app.put('/user', async (req, res) => {
 
         if(!user.meal_name)
         {
-            if(nutritionConn && typeof nutritionConn.destruct === 'function')
-            {
-                nutritionConn.destruct();
-            }
-
             return res.status(400).send({
                 status: 'HTTP/1.1 400 Bad Request',
                 message: 'Meal name not included'
@@ -609,11 +570,13 @@ app.put('/user', async (req, res) => {
 
         try
         {
-            if(nutritionConn.createMeal(user.meal_name, user.user_id))
+            const mealCreate = await nutritionConn.createMeal(user.meal_name, user.user_id);
+            if(mealCreate)
             {
                 return res.status(200).send({
                     status: "HTTP/1.1 200 OK",
-                    message: "Meal successfully created"
+                    message: "Meal successfully created",
+                    meal_id: mealCreate.insertId
                 });
             }
         }
@@ -621,15 +584,8 @@ app.put('/user', async (req, res) => {
         {
             return res.status(500).send({
                 status: "HTTP/1.1 500 Internal Server Error",
-                message: error.message
+                message: error
             });
-        }
-        finally
-        {
-            if(nutritionConn && typeof nutritionConn.destruct === 'function')
-            {
-                nutritionConn.destruct();
-            }
         }
     }
     else if(user.type === 'ingredient')
@@ -639,7 +595,7 @@ app.put('/user', async (req, res) => {
         //check if the meal_id is correct first
         try
         {
-            if(!mealConn.getMeal(user.meal_id))
+            if(!await mealConn.getMeal(user.meal_id))
             {
                 return res.status(400).send({
                     status: 'HTTP/1.1 400 Bad Request',
@@ -649,59 +605,69 @@ app.put('/user', async (req, res) => {
         }
         catch(error)
         {
-            if(mealConn && typeof mealConn.destruct === 'function')
-            {
-                mealConn.destruct();
-            }
-
             return res.status(500).send({
                 status: 'HTTP/1.1 500 Internal Server Error',
-                message: error.message
+                message: error
             });
         }
 
         if(user.ingredient_name  === undefined || user.calories  === undefined || user.protein  === undefined || user.carbs  === undefined || user.fat === undefined)
         {
-            if(mealConn && typeof mealConn.destruct === 'function')
-            {
-                mealConn.destruct();
-            }
-
             return res.status(400).send({
                 status: 'HTTP/1.1 400 Bad Request',
                 message: 'Invalid ingredient'
             });
         }
 
-        if(mealConn && typeof mealConn.destruct === 'function')
-        {
-            mealConn.destruct();
-        }
-
         //create ingredient
         const ingredientConn = new IngredientDatabase();
+        let ingredientId;
         try
         {
-            await ingredientConn.createIngredient(user.ingredient_name, user.calories, user.protein, user.carbs, user.fat, user.meal_id);
+            if(!user.calories)
+            {
+                ingredientId = await ingredientConn.createIngredient(
+                    user.ingredient_name, 
+                    0,
+                    user.kilojoules, 
+                    user.protein, 
+                    user.carbs, 
+                    user.fat, 
+                    user.meal_id).insertId;
+            }
+            else if(!user.kilojoules)
+            {
+                ingredientId = await ingredientConn.createIngredient(
+                    user.ingredient_name, 
+                    user.calories,
+                    0, 
+                    user.protein, 
+                    user.carbs, 
+                    user.fat, 
+                    user.meal_id);
+            }
+            else
+            {
+                return res.status(400).send({
+                    status: "HTTP/1.1 400 Bad Request",
+                    message: "Please provide either calories or kilojoules"
+                });
+            }
+
+            ingredientId = ingredientId.insertId;
 
             return res.status(200).send({
                 status: "HTTP/1.1 200 OK",
-                message: "Ingredient successfully created"
+                message: "Ingredient successfully created",
+                ingredient_id: ingredientId
             });
         }
         catch(error)
         {
             return res.status(500).send({
                 status: "HTTP/1.1 500 Internal Server Error",
-                message: error.message
+                message: error
             });
-        }
-        finally
-        {
-            if(ingredientConn && typeof ingredientConn.destruct === 'function')
-            {
-                ingredientConn.destruct();
-            }
         }
     }
     else
@@ -726,8 +692,7 @@ app.patch('/user', async (req, res) => {
     const userConn = new UserDatabase();
 
     try{
-        const userExists = await userConn.verifyUserID(user.user_id);
-        if(!userExists)
+        if(!await userConn.verifyUserID(user.user_id))
         {
             return res.status(400).send({
                 status: 'HTTP/1.1 400 Bad Request',
@@ -741,13 +706,6 @@ app.patch('/user', async (req, res) => {
             status: "HTTP/1.1 500 Internal Server Error",
             message: error.message
         });
-    }
-    finally
-    {
-        if(userConn && typeof userConn.destruct === 'function')
-        {
-            userConn.destruct();
-        }
     }
 
     if(user.type === 'workout')
@@ -784,53 +742,57 @@ app.patch('/user', async (req, res) => {
                 message: error.message
             });
         }
-        finally
-        {
-            if(workoutConn && typeof workoutConn.destruct === 'function')
-            {
-                workoutConn.destruct();
-            }
-        }
     }
     else if(user.type === 'exercise')
     {
+        if(!user.exercise_id)
+        {
+            return res.status(400).send({
+                status: 'HTTP/1.1 400 Bad Request',
+                message: 'exercise_id missing'
+            });
+        }
+        
         const exerciseConn = new ExerciseDatabase();
         try
         {
-            if(user.update === 'name')
+            for(let i = 0; i < user.update.length; i++)
             {
-                exerciseConn.updateName(user.name, user.exercise_id);
-            }
-            else if(user.update === 'rep_range')
-            {
-                exerciseConn.updateRepRange(user.rep_range, user.exercise_id);
-            }
-            else if(user.update === 'sets')
-            {
-                exerciseConn.updateSets(user.sets, user.exercise_id);
-            }
-            else if(user.update === 'current_weight')
-            {
-                exerciseConn.updateCurrentWeight(user.current_weight, user.exercise_id);
-            }
-            else if(user.update === 'goal_weight')
-            {
-                exerciseConn.updateGoalWeight(user.goal_weight, user.exercise_id);
-            }
-            else if(user.update === 'update notes')
-            {
-                exerciseConn.updateNotes(user.notes, user.exercise_id);
-            }
-            else if(user.update === 'append notes')
-            {
-                exerciseConn.appendNotes(user.notes, user.exercise_id);
-            }
-            else
-            {
-                return res.status(400).send({
-                    status: 'HTTP/1.1 400 Bad Request',
-                    message: 'Invalid exercise update'
-                });
+                if(user.update[i] === 'name')
+                {
+                    exerciseConn.updateName(user.name, user.exercise_id);
+                }
+                else if(user.update[i] === 'rep_range')
+                {
+                    exerciseConn.updateRepRange(user.rep_range, user.exercise_id);
+                }
+                else if(user.update[i] === 'sets')
+                {
+                    exerciseConn.updateSets(user.sets, user.exercise_id);
+                }
+                else if(user.update[i] === 'current_weight')
+                {
+                    exerciseConn.updateCurrentWeight(user.current_weight, user.exercise_id);
+                }
+                else if(user.update[i] === 'goal_weight')
+                {
+                    exerciseConn.updateGoalWeight(user.goal_weight, user.exercise_id);
+                }
+                else if(user.update[i] === 'update notes')
+                {
+                    exerciseConn.updateNotes(user.notes, user.exercise_id);
+                }
+                else if(user.update[i] === 'append notes')
+                {
+                    exerciseConn.appendNotes(user.notes, user.exercise_id);
+                }
+                else
+                {
+                    return res.status(400).send({
+                        status: 'HTTP/1.1 400 Bad Request',
+                        message: 'Invalid exercise update'
+                    });
+                }
             }
 
             return res.status(200).send({
@@ -844,13 +806,6 @@ app.patch('/user', async (req, res) => {
                 status: "HTTP/1.1 500 Internal Server Error",
                 message: error.message
             });
-        }
-        finally
-        {
-            if(exerciseConn && typeof exerciseConn.destruct === 'function')
-            {
-                exerciseConn.destruct();
-            }
         }
     }
     else if(user.type === 'meals')
@@ -858,20 +813,23 @@ app.patch('/user', async (req, res) => {
         const nutritionConn = new NutritionDatabase();
         try
         {
-            if(user.update === 'name')
+            for(let i = 0; i < user.update.length; i++)
             {
-                nutritionConn.updateName(user.name, user.meal_id);
-            }
-            else if(user.update === 'stats')
-            {
-                nutritionConn.updateStats(user.meal_id, stats);
-            }
-            else
-            {
-                return res.status(400).send({
-                    status: 'HTTP/1.1 400 Bad Request',
-                    message: 'Invalid meal update'
-                });
+                if(user.update[i] === 'name')
+                {
+                    nutritionConn.updateName(user.name, user.meal_id);
+                }
+                else if(user.update[i] === 'stats')
+                {
+                    nutritionConn.updateStats(user.meal_id, stats);
+                }
+                else
+                {
+                    return res.status(400).send({
+                        status: 'HTTP/1.1 400 Bad Request',
+                        message: 'Invalid meal update'
+                    });
+                }
             }
 
             return res.status(200).send({
@@ -885,13 +843,6 @@ app.patch('/user', async (req, res) => {
                 status: "HTTP/1.1 500 Internal Server Error",
                 message: error.message
             });
-        }
-        finally
-        {
-            if(nutritionConn && typeof nutritionConn.destruct === 'function')
-            {
-                nutritionConn.destruct();
-            }
         }
     }
     else if(user.type === 'ingredient')
@@ -899,36 +850,40 @@ app.patch('/user', async (req, res) => {
         const ingredientConn = new IngredientDatabase();
         try
         {
-            if(user.update === 'name')
+            for(let i = 0; i < user.update.length; i++)
             {
-                await ingredientConn.updateName(user.name, user.ingredient_id);
-            }
-            else if(user.update === 'calories')
-            {
-                await ingredientConn.updateCalories(user.calories, user.ingredient_id);
-            }
-            else if(user.update === 'joules')
-            {
-                await ingredientConn.updateJoules(user.kilojoules, user.ingredient_id);
-            }
-            else if(user.update === 'protein')
-            {
-                await ingredientConn.updateProtein(user.protein, user.ingredient_id);
-            }
-            else if(user.update === 'carbs')
-            {
-                await ingredientConn.updateCarbs(user.carbs, user.ingredient_id);
-            }
-            else if(user.update === 'fat')
-            {
-                await ingredientConn.updateFat(user.fat, user.ingredient_id);
-            }
-            else
-            {
-                return res.status(400).send({
-                    status: 'HTTP/1.1 400 Bad Request',
-                    message: 'Invalid ingredient update'
-                });
+
+                if(user.update[i] === 'name')
+                {
+                    await ingredientConn.updateName(user.name, user.ingredient_id);
+                }
+                else if(user.update[i] === 'calories')
+                {
+                    await ingredientConn.updateCalories(user.calories, user.ingredient_id);
+                }
+                else if(user.update[i] === 'joules')
+                {
+                    await ingredientConn.updateJoules(user.kilojoules, user.ingredient_id);
+                }
+                else if(user.update[i] === 'protein')
+                {
+                    await ingredientConn.updateProtein(user.protein, user.ingredient_id);
+                }
+                else if(user.update[i] === 'carbs')
+                {
+                    await ingredientConn.updateCarbs(user.carbs, user.ingredient_id);
+                }
+                else if(user.update[i] === 'fat')
+                {
+                    await ingredientConn.updateFat(user.fat, user.ingredient_id);
+                }
+                else
+                {
+                    return res.status(400).send({
+                        status: 'HTTP/1.1 400 Bad Request',
+                        message: 'Invalid ingredient update'
+                    });
+                }
             }
 
             return res.status(200).send({
@@ -942,13 +897,6 @@ app.patch('/user', async (req, res) => {
                 status: "HTTP/1.1 500 Internal Server Error",
                 message: error.message
             });
-        }
-        finally
-        {
-            if(ingredientConn && typeof ingredientConn.destruct === 'function')
-            {
-                ingredientConn.destruct();
-            }
         }
     }
     else
@@ -1007,13 +955,6 @@ app.patch('/forgot-password', async(req, res) => {
             message: error.message
         });
     }
-    finally{
-        if(userConn && typeof userConn.destruct === 'function')
-        {
-            userConn.destruct();
-        }
-    }
-
 })
 app.delete('/user', async (req, res) => {
     const user = req.body;
@@ -1033,17 +974,8 @@ app.delete('/user', async (req, res) => {
         if(!verifyUser)
         {
             return res.status(403).send({
-                status: 'HTTP/1.1 400 Bad Request',
+                status: 'HTTP/1.1 403 Bad Request',
                 message: 'user doesnt exist'
-            });
-        }
-
-        if(user.type === 'profile')
-        {
-            await userConn.deleteUser(user.user_id);
-            return res.status(200).send({
-                status: 'HTTP/1.1 200 OK',
-                message: 'User successfully deleted'
             });
         }
     }
@@ -1054,22 +986,15 @@ app.delete('/user', async (req, res) => {
             message: error.message
         });
     }
-    finally
-    {
-        if(userConn && typeof userConn.destruct === 'function')
-        {
-            userConn.destruct();
-        }
-    }
 
     if(user.type === 'workout')
     {
         const workoutConn = new WorkoutDatabase();
+        const exerciseConn = new ExerciseDatabase();
 
         try
         {
-            const getWorkout = await workoutConn.getWorkout(user.workout_id);
-            if(!getWorkout)
+            if(!await workoutConn.getWorkout(user.user_id))
             {
                 return res.status(400).send({
                     status: 'HTTP/1.1 400 Bad Request',
@@ -1078,7 +1003,17 @@ app.delete('/user', async (req, res) => {
             }
             else
             {
-                workoutConn.deleteWorkout(user.workout_id);
+                const allExercises = await exerciseConn.getFullWorkout(user.workout_id);
+
+                if(allExercises !== false)
+                {
+                    for(const exercise of allExercises)
+                    {
+                        await exerciseConn.deleteExercise(exercise.exercise_id);
+                    }
+                }
+
+                await workoutConn.deleteWorkout(user.workout_id);
                 return res.status(200).send({
                     status: 'HTTP/1.1 200 OK',
                     message: 'Workout successfully deleted'
@@ -1089,15 +1024,8 @@ app.delete('/user', async (req, res) => {
         {
             return res.status(500).send({
                 status: "HTTP/1.1 500 Internal Server Error",
-                message: error.message
+                message: error
             });
-        }
-        finally
-        {
-            if(workoutConn && typeof workoutConn.destruct === 'function')
-            {
-                workoutConn.destruct();
-            }
         }
     }
     else if(user.type === 'exercise')
@@ -1116,7 +1044,7 @@ app.delete('/user', async (req, res) => {
             }
             else
             {
-                exerciseConn.deleteExercise(user.exercise_id);
+                await exerciseConn.deleteExercise(user.exercise_id);
                 return res.status(200).send({
                     status: 'HTTP/1.1 200 OK',
                     message: 'Exercise successfully deleted'
@@ -1127,20 +1055,14 @@ app.delete('/user', async (req, res) => {
         {
             return res.status(500).send({
                 status: "HTTP/1.1 500 Internal Server Error",
-                message: error.message
+                message: error
             });
-        }
-        finally
-        {
-            if(exerciseConn && typeof exerciseConn.destruct === 'function')
-            {
-                exerciseConn.destruct();
-            }
         }
     }
     else if(user.type === 'meals')
     {
         const nutritionConn = new NutritionDatabase();
+        const ingredientConn = new IngredientDatabase();
 
         try
         {
@@ -1154,7 +1076,17 @@ app.delete('/user', async (req, res) => {
             }
             else
             {
-                nutritionConn.deleteMeal(user.meal_id);
+                const getIngredient = await ingredientConn.getAllIngredients(user.meal_id);
+
+                if(getIngredient !== false)
+                {
+                    for(const ingredient of getIngredient)
+                    {
+                        await ingredientConn.deleteIngredient(ingredient.ingredient_id);
+                    }
+                }
+
+                await nutritionConn.deleteMeal(user.meal_id);
                 return res.status(200).send({
                     status: 'HTTP/1.1 200 OK',
                     message: 'Meal successfully deleted'
@@ -1167,13 +1099,6 @@ app.delete('/user', async (req, res) => {
                 status: "HTTP/1.1 500 Internal Server Error",
                 message: error.message
             });
-        }
-        finally
-        {
-            if(nutritionConn && typeof nutritionConn.destruct === 'function')
-            {
-                nutritionConn.destruct();
-            }
         }
     }
     else if(user.type === 'ingredient')
@@ -1206,13 +1131,6 @@ app.delete('/user', async (req, res) => {
                 message: error.message
             });
         }
-        finally
-        {
-            if(ingredientConn && typeof ingredientConn.destruct === 'function')
-            {
-                ingredientConn.destruct();
-            }
-        }
     }
     else
     {
@@ -1236,5 +1154,19 @@ function validateEmail(email)
         /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|.(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
         );
 }
+function convertDateTime(date) {
+    const pad = (n) => n < 10 ? '0' + n : n;
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
 
-module.exports = {app, server};
+
+process.on("SIGINT", async() => {
+    console.log("Shutting down server");
+    await UserDatabase.destruct();
+    await WorkoutDatabase.destruct();
+    await ExerciseDatabase.destruct();
+    await NutritionDatabase.destruct();
+    await IngredientDatabase.destruct();
+    process.exit(0);
+});
+module.exports = app;

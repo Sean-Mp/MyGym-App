@@ -7,7 +7,7 @@ import { firstValueFrom, Observable } from 'rxjs';
 })
 export class ApiService {
 
-  private apiUrl = "http://localhost::3000";
+  private apiUrl: string = "http://localhost::3000";
 
   constructor(private http: HttpClient) { }
 
@@ -29,5 +29,4 @@ export class ApiService {
     const url = `${this.apiUrl}/${endpoint}`;
     return await firstValueFrom(this.http.put(url, {params: data}));
   }
-
 }

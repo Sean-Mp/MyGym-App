@@ -12,5 +12,32 @@
     </ion-toolbar>
   </ion-header>
   <ion-content class = "exercises">
+    <div *ngFor="let exercise of exerciseArr" class = "exercise-container">
+      <div class = "centerContainer">
+        <ng-container>
+        <ion-item>
+          <ion-label> {{exercise.exercise_name}} </ion-label>
+        </ion-item>
+        <ion-item>
+          <ion-label>Reps: {{exercise.rep_range}}</ion-label>
+        </ion-item>
+        <ion-item>
+          <ion-label>Sets: {{exercise.sets}}</ion-label>
+        </ion-item>
+        <ion-item>
+          <ion-label>Current weight: {{exercise.current_weight}}</ion-label>
+        </ion-item>
+        <ion-item>
+          <ion-label>Goal weight: {{exercise.goal_weight}}</ion-label>
+          <ion-label></ion-label>
+        </ion-item>
+        <ion-item>
+          <ion-label>Notes:</ion-label>
+          <ion-textarea> {{ exercise.notes}} </ion-textarea>
+        </ion-item>
+        <p *ngIf="exerciseError" class = "error-message">Couldnt get or save exercises, try again</p>
+        </ng-container>
+      </div>
+    </div>
   </ion-content>
 </ion-modal>
