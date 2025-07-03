@@ -1,0 +1,46 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-title id = "welcome-user"></ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+    <ion-item>
+      <ion-button id = "statsButton" fill = "clear" size= "medium" color = "dark">
+        <ion-label>
+          Statistics
+        </ion-label>
+      </ion-button>
+    </ion-item>
+    <ion-item>
+      <ion-button id = "themeButton" fill = "clear" size= "medium" color = "dark">
+        <ion-label>
+          Change colour theme
+        </ion-label>
+      </ion-button>
+    </ion-item>
+    <ion-item>
+      <ion-button id = "passwordButton" fill = "clear" size= "medium" color = "dark">
+        <ion-label>
+          Change password
+        </ion-label>
+      </ion-button>
+    </ion-item>
+    <ion-item>
+      <ion-button id = "deleteButton" fill = "clear" size= "medium" color = "danger">
+        <ion-label>
+          Delete account
+        </ion-label>
+      </ion-button>
+    </ion-item>
+    <ion-item>
+      <ion-button id = "logoutButton" fill = "clear" size= "medium" color = "dark">
+        <ion-label>
+          Logout
+        </ion-label>
+      </ion-button>
+    </ion-item>
+  <router-outlet></router-outlet>
+</ion-content>
+
+<app-global-tab></app-global-tab>

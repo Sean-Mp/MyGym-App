@@ -1,0 +1,32 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-title id = "welcome-user"></ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <div id = "flex-center">
+    <ion-card class = "meal-card">
+      <ion-button color = "danger" class = "meal-button">
+        <div class = "meal-div">
+          <div class = "left">
+            <ion-label class = "meal-name">Chicken and rice</ion-label>
+          </div>
+          <div class = "center">
+            <ion-label class = "meal-date">Last ate: <br> 04/04/2025</ion-label>
+          </div>
+          <div class = "right">
+            <ion-button shape = "round">
+              <ion-icon slot = "icon-only" name="pen-sharp"></ion-icon>
+            </ion-button>
+          </div>
+        </div>
+      </ion-button>
+    </ion-card>
+    </div>
+    <ion-button shape = "round" id = "add-new-meal">
+      <ion-icon slot= "icon-only" name="add-sharp"></ion-icon>
+    </ion-button>
+  <router-outlet></router-outlet>
+  <app-global-tab></app-global-tab>
+</ion-content>

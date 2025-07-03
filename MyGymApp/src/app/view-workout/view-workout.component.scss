@@ -1,0 +1,15 @@
+.centerContainer{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    background: var(--ion-color-danger);
+    padding: 2%;
+    border-radius: 10px;
+    gap: 2%;
+}
+.error-message{
+    color: white;
+    // display: none;
+    font-size: 1em;
+}

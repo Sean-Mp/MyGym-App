@@ -1,0 +1,42 @@
+#workout-name{
+    font-size: 1.3rem;
+    margin-bottom: 2%;
+}
+#workout-name-input{
+    font-size: 1.2rem;
+}
+.centerContainer{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    background: var(--ion-color-danger);
+    padding: 2%;
+    border-radius: 10px;
+    gap: 2%;
+}
+.error-message{
+    color: white;
+    // display: none;
+    font-size: 1em;
+}
+.centerContainer.shrunk{
+    display: flex;
+    background: var(--ion-color-danger);
+    padding: 2%;
+    border-radius: 2%;
+    min-height: 60px;
+}
+#edit-exercise{
+    --background: maroon;
+    margin-top: 5%;
+    margin-bottom: 5%;
+    margin-left: 45%;
+    width: 5%;
+    height: 2%;
+    z-index: 1000;
+}
+.saved-exercise-name{
+    font-size: 1.2rem;
+    font-weight: bold;
+}
